@@ -95,9 +95,6 @@ Begin {
             if (-not $SendMail.Header) {
                 throw "Property 'SendMail.Header' not found."
             }
-            # if (-not ($file.MaxConcurrentJobs -is [int])) {
-            #     throw "Property 'MaxConcurrentJobs' needs to be a number, the value '$($file.MaxConcurrentJobs)' is not supported."
-            # }
         }
         catch {
             throw "Input file '$ImportFile': $_"
