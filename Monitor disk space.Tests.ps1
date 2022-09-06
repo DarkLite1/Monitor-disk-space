@@ -57,7 +57,7 @@ Describe 'send an e-mail to the admin when' {
             }
         }
         It 'is missing property <_>' -ForEach @(
-            'ComputerName', 'ExcludeDrive', 'ColorFreeSpaceBelow', 'SendMail', 'SendMail.To'
+            'ComputerName', 'ExcludeDrive', 'ColorFreeSpaceBelow', 'SendMail'
         ) {
             $testJsonFile = @{
                 ComputerName        = @('PC1', 'PC2')
