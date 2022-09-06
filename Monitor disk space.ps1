@@ -72,6 +72,9 @@ Begin {
             if (-not ($ComputerNames = $file.ComputerName)) {
                 throw "Property 'ComputerName' not found."
             }
+            $ComputerNames | Group-Object | Where-Object { $_.Count -ge 2 } | ForEach-Object {
+                throw "Property 'ComputerName' contains the duplicate value '$($_.Name)'."
+            }
             if (-not ($ExcludedDrives = $file.ExcludeDrive)) {
                 throw "Property 'ExcludeDrive' not found."
             }
@@ -110,7 +113,18 @@ Begin {
 }       
 Process {
     Try {
-        
+        $M = 'Get hard disk details for {0} computers' -f $ComputerNames.Count
+        Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
+
+        $result = foreach ($computer in $ComputerNames) {
+            $params = @{
+                ClassName    = 'Win32_LogicalDisk'
+                Filter       = 'DriveType = 3'
+                ComputerName = $computer
+                ErrorAction  = 'SilentlyContinue'
+            }
+            Get-CimInstance @params
+        }
     }
     Catch {
         Write-Warning $_

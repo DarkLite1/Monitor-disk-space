@@ -14,6 +14,7 @@ BeforeAll {
         LogFolder  = New-Item 'TestDrive:/log' -ItemType Directory
     }
 
+    Mock Get-CimInstance
     Mock Send-MailHC
     Mock Write-EventLog
 }
@@ -134,7 +135,7 @@ Describe 'send an e-mail to the admin when' {
                 $EntryType -eq 'Error'
             }
         }
-        Context 'ColorFreeSpaceBelow' {
+        Context 'the property ColorFreeSpaceBelow' {
             It 'is not a key value pair' {
                 @{
                     ComputerName        = @("PC1", "PC2")
@@ -155,7 +156,7 @@ Describe 'send an e-mail to the admin when' {
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
                 }
-            } -Tag test
+            }
             It 'is not a color with a number' {
                 @{
                     ComputerName        = @("PC1", "PC2")
@@ -178,7 +179,60 @@ Describe 'send an e-mail to the admin when' {
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
                 }
-            } -Tag test
+            }
+        }
+        It 'the property ComputerName contains duplicates' {
+            $testJsonFile = @{
+                ComputerName        = @('PC1', 'PC2', 'PC2')
+                ExcludeDrive        = @('S')
+                ColorFreeSpaceBelow = @{
+                    Red    = 10
+                    Orange = 15
+                }
+                SendMail            = @{
+                    Header = 'Application X disc space report'
+                    To     = 'bob@contoso.com'
+                }
+            }
+            $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
+
+            .$testScript @testParams
+                        
+            Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                (&$MailAdminParams) -and 
+                ($Message -like "*Property 'ComputerName' contains the duplicate value 'PC2'*")
+            }
+            Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                $EntryType -eq 'Error'
+            }
         }
     }
 }
+Describe 'when all tests pass' {
+    It 'call Get-CimInstance once for each computer' {
+        $testJsonFile = @{
+            ComputerName        = @('PC1', 'PC2')
+            ExcludeDrive        = @('S')
+            ColorFreeSpaceBelow = @{
+                Red    = 10
+                Orange = 15
+            }
+            SendMail            = @{
+                Header = 'Application X disc space report'
+                To     = 'bob@contoso.com'
+            }
+        }
+        $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
+
+        .$testScript @testParams
+                    
+        @('PC1', 'PC2') | ForEach-Object {
+            Should -Invoke Get-CimInstance -Exactly 1 -ParameterFilter {
+                ($ClassName -eq 'Win32_LogicalDisk') -and
+                ($Filter -eq 'DriveType = 3') -and
+                ($ComputerName -eq $_) -and
+                ($ErrorAction -eq 'SilentlyContinue') 
+            }
+        }
+    }
+} -Tag test
