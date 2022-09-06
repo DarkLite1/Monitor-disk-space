@@ -62,9 +62,9 @@ Begin {
 
         #region Import .json file
         $M = "Import .json file '$ImportFile'"
-        Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
+        Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
         
-        $file = Get-Content $ImportFile -Raw -EA Stop | ConvertFrom-Json
+        $file = Get-Content -Path $ImportFile -Raw -EA Stop | ConvertFrom-Json
         #endregion
         
         #region Test .json file properties
@@ -72,21 +72,32 @@ Begin {
             if (-not ($ComputerNames = $file.ComputerName)) {
                 throw "Property 'ComputerName' not found."
             }
-            if (-not $file.ExcludeDrive) {
+            if (-not ($ExcludedDrives = $file.ExcludeDrive)) {
                 throw "Property 'ExcludeDrive' not found."
             }
-            if (-not $file.ColorFreeSpaceBelow) {
+            if (-not ($ColorFreeSpaceBelow = $file.ColorFreeSpaceBelow)) {
                 throw "Property 'ColorFreeSpaceBelow' not found."
             }
-            if (-not ($file.MaxConcurrentJobs -is [int])) {
-                throw "Input file '$ImportFile': Property 'MaxConcurrentJobs' needs to be a number, the value '$($file.MaxConcurrentJobs)' is not supported."
+            if (-not ($ColorFreeSpaceBelow -is [PSCustomObject])) {
+                throw "Property 'ColorFreeSpaceBelow' is not a key value pair of a color with a percentage number."
             }
-            if (-not $task.SendMail) {
-                throw "Input file '$ImportFile': Property 'SendMail' is mandatory."
+            $ColorFreeSpaceBelow.PSObject.Properties | ForEach-Object {
+                if (-not ($_.Value -is [Int])) {
+                    throw "Property 'ColorFreeSpaceBelow' with color '$($_.Name)' contains value '$($_.Value)' that is not a number."
+                }
             }
-            if (-not $task.SendMail.To) {
-                throw "Input file '$ImportFile': Property 'SendMail.To' is mandatory."
+            if (-not ($SendMail = $file.SendMail)) {
+                throw "Property 'SendMail' not found."
             }
+            if (-not $SendMail.To) {
+                throw "Property 'SendMail.To' not found."
+            }
+            if (-not $SendMail.Header) {
+                throw "Property 'SendMail.Header' not found."
+            }
+            # if (-not ($file.MaxConcurrentJobs -is [int])) {
+            #     throw "Property 'MaxConcurrentJobs' needs to be a number, the value '$($file.MaxConcurrentJobs)' is not supported."
+            # }
         }
         catch {
             throw "Input file '$ImportFile': $_"
