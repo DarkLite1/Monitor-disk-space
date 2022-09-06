@@ -116,15 +116,14 @@ Process {
         $M = 'Get hard disk details for {0} computers' -f $ComputerNames.Count
         Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
 
+        $params = @{
+            ClassName   = 'Win32_LogicalDisk'
+            Filter      = 'DriveType = 3'
+            ErrorAction = 'SilentlyContinue'
+        }
         $result = foreach ($computer in $ComputerNames) {
             Write-Verbose "Get hard disk details for '$computer'"
-            $params = @{
-                ClassName    = 'Win32_LogicalDisk'
-                Filter       = 'DriveType = 3'
-                ComputerName = $computer
-                ErrorAction  = 'SilentlyContinue'
-            }
-            Get-CimInstance @params
+            Get-CimInstance @params -ComputerName $computer
         }
     }
     Catch {
