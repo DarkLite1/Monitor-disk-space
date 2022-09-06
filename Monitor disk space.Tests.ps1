@@ -210,8 +210,10 @@ Describe 'send an e-mail to the admin when' {
 }
 Describe 'when all tests pass' {
     It 'call Get-CimInstance once for each computer' {
+        $testComputerNames = @('PC1', 'PC2')
+
         $testJsonFile = @{
-            ComputerName        = @('PC1', 'PC2')
+            ComputerName        = $testComputerNames
             ExcludeDrive        = @('S')
             ColorFreeSpaceBelow = @{
                 Red    = 10
@@ -226,7 +228,7 @@ Describe 'when all tests pass' {
 
         .$testScript @testParams
                     
-        @('PC1', 'PC2') | ForEach-Object {
+        $testComputerNames | ForEach-Object {
             Should -Invoke Get-CimInstance -Exactly 1 -ParameterFilter {
                 ($ClassName -eq 'Win32_LogicalDisk') -and
                 ($Filter -eq 'DriveType = 3') -and
@@ -234,5 +236,7 @@ Describe 'when all tests pass' {
                 ($ErrorAction -eq 'SilentlyContinue') 
             }
         }
+
+        Should -Invoke Get-CimInstance -Exactly $testComputerNames.Count
     }
 } -Tag test

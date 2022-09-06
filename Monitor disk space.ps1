@@ -117,6 +117,7 @@ Process {
         Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
 
         $result = foreach ($computer in $ComputerNames) {
+            Write-Verbose "Get hard disk details for '$computer'"
             $params = @{
                 ClassName    = 'Win32_LogicalDisk'
                 Filter       = 'DriveType = 3'
