@@ -45,7 +45,7 @@ Begin {
         Get-ScriptRuntimeHC -Start
         $error.Clear()
         
-        #region Logging
+        #region Create log folder
         try {
             $logParams = @{
                 LogFolder    = New-Item -Path $LogFolder -ItemType 'Directory' -Force -ErrorAction 'Stop'
@@ -126,6 +126,7 @@ Process {
         }
         #endregion
 
+        #region Get drives
         $M = 'Get hard disk details for {0} computers' -f $ComputerNames.Count
         Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
 
@@ -142,6 +143,7 @@ Process {
                 ($ExcludedDrives -notContains $_.DeviceID)
             }
         }
+        #endregion
     }
     Catch {
         Write-Warning $_
