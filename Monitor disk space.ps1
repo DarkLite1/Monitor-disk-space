@@ -222,8 +222,12 @@ End {
         #region Mail subject and priority
         $mailParams.Priority = 'Normal'
 
-        $mailParams.Subject = '{0} computers, {1} drives' -f
-        $counter.computers, $counter.drives
+        $mailParams.Subject = '{0} computer{1}, {2} drive{3}' -f
+        $counter.computers,
+        $(if ($counter.computers -ne 1) { 's' }), 
+        $counter.drives,
+        $(if ($counter.drives -ne 1) { 's' })
+
         #endregion
 
         if ($counter.errors) {

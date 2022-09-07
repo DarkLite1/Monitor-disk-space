@@ -363,21 +363,41 @@ Describe 'when all tests pass' {
             }
         }
     }
-    It 'send a summary mail to the user' {
-        Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
-            ($To -eq 'bob@contoso.com') -and
-            ($Bcc -eq $ScriptAdmin) -and
-            ($Priority -eq 'Normal') -and
-            ($Subject -eq '1 file moved') -and
-            ($Attachments -like '*log.xlsx') -and
-            ($Message -like (
-                "*From: <a href=`"{0}`">{0}</a><br>To: <a href=`"{1}`">{1}</a><br>Move files older than 3 days<br>Moved: 1*" -f $(
-                    "\\$env:COMPUTERNAME\C$\$($testFolder.Source.Substring(3))"
-                ),
-                $(
-                    "\\$env:COMPUTERNAME\C$\$($testFolder.Destination.Substring(3))"
-                )
-            ))
+    Context 'send a mail to the user with' {
+        BeforeAll {
+            $testMail = @{
+                Priority = 'Normal'
+                Subject  = '2 computers, 2 drives'
+                Message  = "*Summary*<th>Total tasks</th>*<td>1</td>*<th>Successful backups</th>*<td>0</td>*<th>Successful restores</th>*<td>0</td>*<th>Errors</th>*<td>1</td>*<p><i>* Check the attachment for details</i></p>*"
+            }
         }
-    } -Skip
+        It 'To Bcc Priority Subject' {
+            Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
+                ($To -eq 'bob@contoso.com') -and
+                ($Bcc -eq $ScriptAdmin) -and
+                ($Priority -eq $testMail.Priority) -and
+                ($Subject -eq $testMail.Subject)
+            }
+        }
+        It 'Attachments' {
+            Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
+                ($Attachments -like '* - Log.xlsx')
+            }
+        }
+        It 'Message' {
+            Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
+                $Message -like $testMail.Message
+            }
+        }
+        It 'Everything' {
+            Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
+                ($To -eq 'bob@contoso.com') -and
+                ($Bcc -eq $ScriptAdmin) -and
+                ($Priority -eq $testMail.Priority) -and
+                ($Subject -eq $testMail.Subject) -and
+                ($Attachments -like '* - Log.xlsx') -and
+                ($Message -like $testMail.Message)
+            }
+        }
+    }
 }
