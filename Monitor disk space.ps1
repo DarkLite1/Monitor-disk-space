@@ -136,7 +136,7 @@ Process {
             ErrorAction = 'SilentlyContinue'
             Verbose     = $false
         }
-        $disks = foreach ($computer in $ComputerNames) {
+        $drives = foreach ($computer in $ComputerNames) {
             Write-Verbose "Get hard disk details for '$computer'"
             Get-CimInstance @params -ComputerName $computer |
             Where-Object {
@@ -154,7 +154,127 @@ Process {
 }
 End {
     try {
-        
+        $excelParams = @{
+            Path         = "$LogFile.xlsx"
+            AutoSize     = $true
+            FreezeTopRow = $true
+        }
+        $mailParams = @{
+            To        = $SendMail.To
+            Bcc       = $ScriptAdmin
+            Message   = $null
+            Subject   = $null
+            LogFolder = $LogParams.LogFolder
+            Header    = $SendMail.Header
+            Save      = "$LogFile - Mail.html"
+        }
+
+        #region Export data to Excel
+        if ($drives) {
+            $excelParams.WorksheetName = $excelParams.TableName = 'Drives'
+
+            $drives | Select-Object -Property @{
+                Name       = 'ComputerName'
+                Expression = { $_.PSComputerName }
+            },
+            @{
+                Name       = 'Drive'
+                Expression = { $_.DeviceID }
+            },
+            @{
+                Name       = 'DriveName'
+                Expression = { $_.VolumeName }
+            },
+            @{
+                Name       = 'Size(GB)'
+                Expression = { [Math]::Round( $_.Size / 1GB, 2) }
+            },
+            @{
+                Name       = 'UsedSpace(GB)'
+                Expression = { 
+                    [Math]::Round(($_.Size - $_.FreeSpace) / 1GB, 2) 
+                }
+            },
+            @{
+                Name       = 'FreeSpace(GB)'
+                Expression = { [Math]::Round( $_.FreeSpace / 1GB, 2) }
+            },
+            @{
+                Name       = 'FreeSpace(%)'
+                Expression = { 
+                    [Math]::Round( ($_.FreeSpace / $_.Size) * 100, 2) 
+                }
+            } |
+            Export-Excel @excelParams
+
+            $mailParams.Attachments = $excelParams.Path
+        }
+        #endregion
+
+        #region Count results, errors, ...
+        $counter = @{
+            drives    = ($drives | Measure-Object).Count
+            computers = ($ComputerNames | Measure-Object).Count
+            errors    = ($Error.Exception.Message | Measure-Object).Count
+        }
+        #endregion
+
+        #region Mail subject and priority
+        $mailParams.Priority = 'Normal'
+
+        $mailParams.Subject = '{0} computers, {1} drives' -f
+        $counter.computers, $counter.drives
+        #endregion
+
+        if ($counter.errors) {
+            #region Export errors to Excel
+            $excelParams.WorksheetName = $excelParams.TableName = 'Errors'
+
+            $Error.Exception.Message | Select-Object -Unique | 
+            Export-Excel @excelParams
+
+            $mailParams.Attachments = $excelParams.Path
+            #endregion
+            
+            #region Mail subject, priority, message
+            $mailParams.Priority = 'High'
+
+            $mailParams.Subject += ', {0} error{1}' -f $counter.errors, $(
+                if ($counter.errors -ne 1) { 's' }
+            )
+            $mailParams.Message = "<p>Detected <b>{0} non terminating error{1}</b></p>" -f $counter.errors, 
+            $(
+                if ($counter.errors -gt 1) { 's' }
+            )
+            #endregion
+        }
+
+        #region Send mail
+        $mailParams.Message += "
+            <p>Scan results of the hard disks:</p>
+            <table>
+                <tr><th>Computers</th><td>{0}</td></tr>
+                <tr><th>Drives</th><td>{1}</td></tr>
+                {3}
+            </table>" -f 
+        $counter.computers,
+        $(
+            if ($counter.computers -ne 1) { 's' }
+        ),
+        $drives.Count,
+        $(
+            if ($ExcludedDrives) {
+                '<tr><th>Excluded drives</th><td>{0}</td></tr>' -f
+                ($ExcludedDrives -join ', ')
+            }
+        )
+
+        if ($mailParams.Attachments) {
+            $mailParams.Message += '<p><i>* Check the attachment for details</i></p>'
+        }
+        Get-ScriptRuntimeHC -Stop  
+        Send-MailHC @mailParams
+        #endregion
     }
     Catch {
         Write-Warning $_

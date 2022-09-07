@@ -234,42 +234,12 @@ Describe 'send an e-mail to the admin when' {
     }
 }
 Describe 'when all tests pass' {
-    It 'call Get-CimInstance once for each computer' {
-        $testComputerNames = @('PC1', 'PC2')
-
-        $testJsonFile = @{
-            ComputerName        = $testComputerNames
-            ExcludeDrive        = @('S')
-            ColorFreeSpaceBelow = @{
-                Red    = 10
-                Orange = 15
-            }
-            SendMail            = @{
-                Header = 'Application X disc space report'
-                To     = 'bob@contoso.com'
-            }
-        }
-        $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
-
-        .$testScript @testParams
-                    
-        $testComputerNames | ForEach-Object {
-            Should -Invoke Get-CimInstance -Exactly 1 -ParameterFilter {
-                ($ClassName -eq 'Win32_LogicalDisk') -and
-                ($Filter -eq 'DriveType = 3') -and
-                ($ComputerName -eq $_) -and
-                ($ErrorAction -eq 'SilentlyContinue') 
-            }
-        }
-
-        Should -Invoke Get-CimInstance -Exactly $testComputerNames.Count
-    }
-    It 'ignore excluded drives' {
+    BeforeAll {
         Mock Get-CimInstance {
             [PSCustomObject]@{
                 PSComputerName = 'PC1'
-                FreeSpace      = 4523646976
-                Size           = 5366607872
+                FreeSpace      = 1073741824
+                Size           = 5368709120
                 VolumeName     = 'OTHER'
                 DeviceID       = 'A:'
             }
@@ -287,10 +257,23 @@ Describe 'when all tests pass' {
                 VolumeName     = 'OS'
                 DeviceID       = 'C:'
             }
+        } -ParameterFilter {
+            $ComputerName -eq 'PC1'
+        }
+        Mock Get-CimInstance {
+            [PSCustomObject]@{
+                PSComputerName = 'PC2'
+                FreeSpace      = 53687091200
+                Size           = 107374182400
+                VolumeName     = 'BLA'
+                DeviceID       = 'A:'
+            }
+        } -ParameterFilter {
+            $ComputerName -eq 'PC2'
         }
 
         $testJsonFile = @{
-            ComputerName        = @('PC1')
+            ComputerName        = @('PC1', 'PC2')
             ExcludeDrive        = @('B', 'c')
             ColorFreeSpaceBelow = @{
                 Red    = 10
@@ -303,9 +286,98 @@ Describe 'when all tests pass' {
         }
         $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
 
-        .$testScript @testParams -verbose
-                    
-        $disks | Should -HaveCount 1
-        $disks.DeviceID | Should -Be 'A:'
-    } -Tag test
+        .$testScript @testParams
+    }
+    It 'call Get-CimInstance once for each computer' {
+        @('PC1', 'PC2') | ForEach-Object {
+            Should -Invoke Get-CimInstance -Times 1 -Exactly -Scope Describe -ParameterFilter {
+                ($ClassName -eq 'Win32_LogicalDisk') -and
+                ($Filter -eq 'DriveType = 3') -and
+                ($ComputerName -eq $_) -and
+                ($ErrorAction -eq 'SilentlyContinue') 
+            }
+        }
+
+        Should -Invoke Get-CimInstance -Times 2 -Exactly -Scope Describe
+    }
+    It 'ignore excluded drives' {
+        $drives | Should -HaveCount 2
+        @(
+            [PSCustomObject]@{
+                PSComputerName = 'PC1'
+                DeviceID       = 'A:'
+            }
+            [PSCustomObject]@{
+                PSComputerName = 'PC2'
+                DeviceID       = 'A:'
+            }
+        ) | ForEach-Object {
+            $drives.PSComputerName | Should -Contain $_.PSComputerName
+            $drives.DeviceID | Should -Contain $_.DeviceID
+        }
+    }
+    Context 'export an Excel file' {
+        BeforeAll {
+            $testExportedExcelRows = @(
+                @{
+                    ComputerName    = 'PC1'
+                    Drive           = 'A:'
+                    DriveName       = 'OTHER'
+                    'Size(GB)'      = '5'
+                    'UsedSpace(GB)' = '4'
+                    'FreeSpace(GB)' = '1'
+                    'FreeSpace(%)'  = '20'
+                }
+                @{
+                    ComputerName    = 'PC2'
+                    Drive           = 'A:'
+                    DriveName       = 'BLA'
+                    'Size(GB)'      = '100'
+                    'UsedSpace(GB)' = '50'
+                    'FreeSpace(GB)' = '50'
+                    'FreeSpace(%)'  = '50'
+                }
+            )
+
+            $testExcelLogFile = Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx'
+
+            $actual = Import-Excel -Path $testExcelLogFile.FullName -WorksheetName 'Drives'
+        }
+        It 'to the log folder' {
+            $testExcelLogFile | Should -Not -BeNullOrEmpty
+        }
+        It 'with the correct total rows' {
+            $actual | Should -HaveCount $testExportedExcelRows.Count
+        }
+        It 'with the correct data in the rows' {
+            foreach ($testRow in $testExportedExcelRows) {
+                $actualRow = $actual | Where-Object {
+                    $_.ComputerName -eq $testRow.ComputerName
+                }
+                $actualRow.Drive | Should -Be $testRow.Drive
+                $actualRow.DriveName | Should -Be $testRow.DriveName
+                $actualRow.'Size(GB)' | Should -Be $testRow.'Size(GB)'
+                $actualRow.'FreeSpace(GB)' | Should -Be $testRow.'FreeSpace(GB)'
+                $actualRow.'FreeSpace(%)' | Should -Be $testRow.'FreeSpace(%)'
+                $actualRow.'UsedSpace(GB)' | Should -Be $testRow.'UsedSpace(GB)'
+            }
+        }
+    }
+    It 'send a summary mail to the user' {
+        Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
+            ($To -eq 'bob@contoso.com') -and
+            ($Bcc -eq $ScriptAdmin) -and
+            ($Priority -eq 'Normal') -and
+            ($Subject -eq '1 file moved') -and
+            ($Attachments -like '*log.xlsx') -and
+            ($Message -like (
+                "*From: <a href=`"{0}`">{0}</a><br>To: <a href=`"{1}`">{1}</a><br>Move files older than 3 days<br>Moved: 1*" -f $(
+                    "\\$env:COMPUTERNAME\C$\$($testFolder.Source.Substring(3))"
+                ),
+                $(
+                    "\\$env:COMPUTERNAME\C$\$($testFolder.Destination.Substring(3))"
+                )
+            ))
+        }
+    } -Skip
 }
