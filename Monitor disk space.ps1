@@ -186,26 +186,42 @@ End {
                 Expression = { $_.VolumeName }
             },
             @{
-                Name       = 'Size(GB)'
+                Name       = 'Size'
                 Expression = { [Math]::Round( $_.Size / 1GB, 2) }
             },
             @{
-                Name       = 'UsedSpace(GB)'
+                Name       = 'UsedSpace'
                 Expression = { 
                     [Math]::Round(($_.Size - $_.FreeSpace) / 1GB, 2) 
                 }
             },
             @{
-                Name       = 'FreeSpace(GB)'
+                Name       = 'FreeSpace'
                 Expression = { [Math]::Round( $_.FreeSpace / 1GB, 2) }
             },
             @{
-                Name       = 'FreeSpace(%)'
+                Name       = 'Free'
                 Expression = { 
                     [Math]::Round( ($_.FreeSpace / $_.Size) * 100, 2) 
                 }
             } |
-            Export-Excel @excelParams
+            Export-Excel @excelParams -AutoNameRange -CellStyleSB {
+                Param (
+                    $WorkSheet,
+                    $TotalRows,
+                    $LastColumn
+                )
+
+                @(
+                    $WorkSheet.Names[
+                    'Size', 'FreeSpace', 'UsedSpace'
+                    ].Style).ForEach( {
+                        $_.NumberFormat.Format = '?\ \G\B'
+                    }
+                )
+
+                $WorkSheet.Cells.Style.HorizontalAlignment = 'Center'
+            }
 
             $mailParams.Attachments = $excelParams.Path
         }

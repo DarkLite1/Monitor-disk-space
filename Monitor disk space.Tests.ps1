@@ -320,22 +320,22 @@ Describe 'when all tests pass' {
         BeforeAll {
             $testExportedExcelRows = @(
                 @{
-                    ComputerName    = 'PC1'
-                    Drive           = 'A:'
-                    DriveName       = 'OTHER'
-                    'Size(GB)'      = '5'
-                    'UsedSpace(GB)' = '4'
-                    'FreeSpace(GB)' = '1'
-                    'FreeSpace(%)'  = '20'
+                    ComputerName = 'PC1'
+                    Drive        = 'A:'
+                    DriveName    = 'OTHER'
+                    'Size'       = '5'
+                    'UsedSpace'  = '4'
+                    'FreeSpace'  = '1'
+                    'Free'       = '20'
                 }
                 @{
-                    ComputerName    = 'PC2'
-                    Drive           = 'A:'
-                    DriveName       = 'BLA'
-                    'Size(GB)'      = '100'
-                    'UsedSpace(GB)' = '50'
-                    'FreeSpace(GB)' = '50'
-                    'FreeSpace(%)'  = '50'
+                    ComputerName = 'PC2'
+                    Drive        = 'A:'
+                    DriveName    = 'BLA'
+                    'Size'       = '100'
+                    'UsedSpace'  = '50'
+                    'FreeSpace'  = '50'
+                    'Free'       = '50'
                 }
             )
 
@@ -356,10 +356,10 @@ Describe 'when all tests pass' {
                 }
                 $actualRow.Drive | Should -Be $testRow.Drive
                 $actualRow.DriveName | Should -Be $testRow.DriveName
-                $actualRow.'Size(GB)' | Should -Be $testRow.'Size(GB)'
-                $actualRow.'FreeSpace(GB)' | Should -Be $testRow.'FreeSpace(GB)'
-                $actualRow.'FreeSpace(%)' | Should -Be $testRow.'FreeSpace(%)'
-                $actualRow.'UsedSpace(GB)' | Should -Be $testRow.'UsedSpace(GB)'
+                $actualRow.'Size' | Should -Be $testRow.'Size'
+                $actualRow.'FreeSpace' | Should -Be $testRow.'FreeSpace'
+                $actualRow.'Free' | Should -Be $testRow.'Free'
+                $actualRow.'UsedSpace' | Should -Be $testRow.'UsedSpace'
             }
         }
     }
@@ -384,7 +384,7 @@ Describe 'when all tests pass' {
             $mailParams.Subject | Should -Be $testMail.Subject
             $mailParams.Attachments | Should -BeLike $testMail.Attachments
             $mailParams.Message | Should -BeLike $testMail.Message
-        } -tag test
+        } -Tag test
         It 'Everything' {
             Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
                 ($To -eq $testMail.To) -and
