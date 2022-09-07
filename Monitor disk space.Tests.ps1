@@ -206,6 +206,31 @@ Describe 'send an e-mail to the admin when' {
                 $EntryType -eq 'Error'
             }
         }
+        It 'the property ExcludeDrive contains an invalid string' {
+            $testJsonFile = @{
+                ComputerName        = @('PC1')
+                ExcludeDrive        = @('dd')
+                ColorFreeSpaceBelow = @{
+                    Red    = 10
+                    Orange = 15
+                }
+                SendMail            = @{
+                    Header = 'Application X disc space report'
+                    To     = 'bob@contoso.com'
+                }
+            }
+            $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
+
+            .$testScript @testParams
+                        
+            Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                (&$MailAdminParams) -and 
+                ($Message -like "*Excluded drive 'dd' is not a single alphabetical character*")
+            }
+            Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                $EntryType -eq 'Error'
+            }
+        }
     }
 }
 Describe 'when all tests pass' {
@@ -239,4 +264,48 @@ Describe 'when all tests pass' {
 
         Should -Invoke Get-CimInstance -Exactly $testComputerNames.Count
     }
-} -Tag test
+    It 'ignore excluded drives' {
+        Mock Get-CimInstance {
+            [PSCustomObject]@{
+                PSComputerName = 'PC1'
+                FreeSpace      = 4523646976
+                Size           = 5366607872
+                VolumeName     = 'OTHER'
+                DeviceID       = 'A:'
+            }
+            [PSCustomObject]@{
+                PSComputerName = 'PC1'
+                FreeSpace      = 4523646976
+                Size           = 5366607872
+                VolumeName     = 'DATA'
+                DeviceID       = 'B:'
+            }
+            [PSCustomObject]@{
+                PSComputerName = 'PC1'
+                FreeSpace      = 4523646976
+                Size           = 5366607872
+                VolumeName     = 'OS'
+                DeviceID       = 'C:'
+            }
+        }
+
+        $testJsonFile = @{
+            ComputerName        = @('PC1')
+            ExcludeDrive        = @('B', 'c')
+            ColorFreeSpaceBelow = @{
+                Red    = 10
+                Orange = 15
+            }
+            SendMail            = @{
+                Header = 'Application X disc space report'
+                To     = 'bob@contoso.com'
+            }
+        }
+        $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
+
+        .$testScript @testParams -verbose
+                    
+        $disks | Should -HaveCount 1
+        $disks.DeviceID | Should -Be 'A:'
+    } -Tag test
+}

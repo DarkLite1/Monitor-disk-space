@@ -78,6 +78,11 @@ Begin {
             if (-not ($ExcludedDrives = $file.ExcludeDrive)) {
                 throw "Property 'ExcludeDrive' not found."
             }
+            $ExcludedDrives | Where-Object { $_ -notMatch '^[A-Z]$' } | 
+            ForEach-Object {
+                throw "Excluded drive '$_' is not a single alphabetical character"
+            }
+            
             if (-not ($ColorFreeSpaceBelow = $file.ColorFreeSpaceBelow)) {
                 throw "Property 'ColorFreeSpaceBelow' not found."
             }
@@ -113,6 +118,14 @@ Begin {
 }       
 Process {
     Try {
+        #region Convert excluded drive letters
+        $ExcludedDrives = $ExcludedDrives | ForEach-Object { 
+            $driveLetter = '{0}:' -f $_.ToUpper()
+            Write-Verbose "Exclude drive '$driveLetter'"
+            $driveLetter
+        }
+        #endregion
+
         $M = 'Get hard disk details for {0} computers' -f $ComputerNames.Count
         Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
 
@@ -120,10 +133,14 @@ Process {
             ClassName   = 'Win32_LogicalDisk'
             Filter      = 'DriveType = 3'
             ErrorAction = 'SilentlyContinue'
+            Verbose     = $false
         }
-        $result = foreach ($computer in $ComputerNames) {
+        $disks = foreach ($computer in $ComputerNames) {
             Write-Verbose "Get hard disk details for '$computer'"
-            Get-CimInstance @params -ComputerName $computer
+            Get-CimInstance @params -ComputerName $computer |
+            Where-Object {
+                ($ExcludedDrives -notContains $_.DeviceID)
+            }
         }
     }
     Catch {
