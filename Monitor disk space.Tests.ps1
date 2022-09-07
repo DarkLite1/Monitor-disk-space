@@ -323,19 +323,19 @@ Describe 'when all tests pass' {
                     ComputerName = 'PC1'
                     Drive        = 'A:'
                     DriveName    = 'OTHER'
-                    'Size'       = '5'
-                    'UsedSpace'  = '4'
-                    'FreeSpace'  = '1'
-                    'Free'       = '20'
+                    Size         = '5'
+                    UsedSpace    = '4'
+                    FreeSpace    = '1'
+                    Free         = '20'
                 }
                 @{
                     ComputerName = 'PC2'
                     Drive        = 'A:'
                     DriveName    = 'BLA'
-                    'Size'       = '100'
-                    'UsedSpace'  = '50'
-                    'FreeSpace'  = '50'
-                    'Free'       = '50'
+                    Size         = '100'
+                    UsedSpace    = '50'
+                    FreeSpace    = '50'
+                    Free         = '50'
                 }
             )
 
@@ -356,10 +356,10 @@ Describe 'when all tests pass' {
                 }
                 $actualRow.Drive | Should -Be $testRow.Drive
                 $actualRow.DriveName | Should -Be $testRow.DriveName
-                $actualRow.'Size' | Should -Be $testRow.'Size'
-                $actualRow.'FreeSpace' | Should -Be $testRow.'FreeSpace'
-                $actualRow.'Free' | Should -Be $testRow.'Free'
-                $actualRow.'UsedSpace' | Should -Be $testRow.'UsedSpace'
+                $actualRow.Size | Should -Be $testRow.Size
+                $actualRow.FreeSpace | Should -Be $testRow.FreeSpace
+                $actualRow.Free | Should -Be $testRow.Free
+                $actualRow.UsedSpace | Should -Be $testRow.UsedSpace
             }
         }
     }
