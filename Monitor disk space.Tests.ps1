@@ -371,7 +371,7 @@ Describe 'when all tests pass' {
                 Message     = "*<p>Scan results of the hard disks:</p>*
                 *<tr><th>Computers</th><td>2</td></tr>*
                 *<tr><th>Drives</th><td>2</td></tr>*
-                *<p><i>* Check the attachment for details</i></p>*"
+                *<tr><th>Excluded drives</th><td>B:, C:</td></tr>*<p><i>* Check the attachment for details</i></p>*"
                 To          = $testJsonFile.SendMail.To
                 Bcc         = $ScriptAdmin
                 Attachments = '*.xlsx'
