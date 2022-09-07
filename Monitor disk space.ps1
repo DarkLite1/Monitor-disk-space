@@ -259,13 +259,10 @@ End {
             <table>
                 <tr><th>Computers</th><td>{0}</td></tr>
                 <tr><th>Drives</th><td>{1}</td></tr>
-                {3}
+                {2}
             </table>" -f 
         $counter.computers,
-        $(
-            if ($counter.computers -ne 1) { 's' }
-        ),
-        $drives.Count,
+        $counter.drives,
         $(
             if ($ExcludedDrives) {
                 '<tr><th>Excluded drives</th><td>{0}</td></tr>' -f

@@ -366,36 +366,32 @@ Describe 'when all tests pass' {
     Context 'send a mail to the user with' {
         BeforeAll {
             $testMail = @{
-                Priority = 'Normal'
-                Subject  = '2 computers, 2 drives'
-                Message  = "*Summary*<th>Total tasks</th>*<td>1</td>*<th>Successful backups</th>*<td>0</td>*<th>Successful restores</th>*<td>0</td>*<th>Errors</th>*<td>1</td>*<p><i>* Check the attachment for details</i></p>*"
+                Priority    = 'Normal'
+                Subject     = '2 computers, 2 drives'
+                Message     = "*<p>Scan results of the hard disks:</p>*
+                *<tr><th>Computers</th><td>2</td></tr>*
+                *<tr><th>Drives</th><td>2</td></tr>*
+                *<p><i>* Check the attachment for details</i></p>*"
+                To          = $testJsonFile.SendMail.To
+                Bcc         = $ScriptAdmin
+                Attachments = '*.xlsx'
             }
         }
-        It 'To Bcc Priority Subject' {
-            Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
-                ($To -eq 'bob@contoso.com') -and
-                ($Bcc -eq $ScriptAdmin) -and
-                ($Priority -eq $testMail.Priority) -and
-                ($Subject -eq $testMail.Subject)
-            }
-        }
-        It 'Attachments' {
-            Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
-                ($Attachments -like '* - Log.xlsx')
-            }
-        }
-        It 'Message' {
-            Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
-                $Message -like $testMail.Message
-            }
-        }
+        It 'the correct arguments' {
+            $mailParams.To | Should -Be $testMail.To
+            $mailParams.Bcc | Should -Be $testMail.Bcc
+            $mailParams.Priority | Should -Be $testMail.Priority
+            $mailParams.Subject | Should -Be $testMail.Subject
+            $mailParams.Attachments | Should -BeLike $testMail.Attachments
+            $mailParams.Message | Should -BeLike $testMail.Message
+        } -tag test
         It 'Everything' {
             Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
-                ($To -eq 'bob@contoso.com') -and
-                ($Bcc -eq $ScriptAdmin) -and
+                ($To -eq $testMail.To) -and
+                ($Bcc -eq $testMail.Bcc) -and
                 ($Priority -eq $testMail.Priority) -and
                 ($Subject -eq $testMail.Subject) -and
-                ($Attachments -like '* - Log.xlsx') -and
+                ($Attachments -like $testMail.Attachments) -and
                 ($Message -like $testMail.Message)
             }
         }
