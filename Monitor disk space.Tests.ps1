@@ -58,7 +58,7 @@ Describe 'send an e-mail to the admin when' {
             }
         }
         It 'is missing property <_>' -ForEach @(
-            'ComputerName', 'ColorFreeSpaceBelow', 'SendMail'
+            'ComputerName', 'SendMail'
         ) {
             $testJsonFile = @{
                 ComputerName        = @('PC1', 'PC2')
@@ -90,16 +90,12 @@ Describe 'send an e-mail to the admin when' {
                 $EntryType -eq 'Error'
             }
         }
-        It 'is missing property SendMail.To' {
+        It 'the property ComputerName contains duplicates' {
             $testJsonFile = @{
-                ComputerName        = @('PC1', 'PC2')
-                ColorFreeSpaceBelow = @{
-                    Red    = 10
-                    Orange = 15
-                }
-                SendMail            = @{
+                ComputerName = @('PC1', 'PC2', 'PC2')
+                SendMail     = @{
                     Header = 'Application X disc space report'
-                    # To     = 'bob@contoso.com'
+                    To     = 'bob@contoso.com'
                 }
             }
             $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
@@ -108,34 +104,60 @@ Describe 'send an e-mail to the admin when' {
                         
             Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                 (&$MailAdminParams) -and 
-                ($Message -like "*Property 'SendMail.To' not found*")
+                ($Message -like "*Property 'ComputerName' contains the duplicate value 'PC2'*")
             }
             Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                 $EntryType -eq 'Error'
             }
         }
-        It 'is missing property SendMail.Header' {
-            $testJsonFile = @{
-                ComputerName        = @('PC1', 'PC2')
-                ColorFreeSpaceBelow = @{
-                    Red    = 10
-                    Orange = 15
+        Context 'the property SendMail' {
+            It 'is missing property To' {
+                $testJsonFile = @{
+                    ComputerName        = @('PC1', 'PC2')
+                    ColorFreeSpaceBelow = @{
+                        Red    = 10
+                        Orange = 15
+                    }
+                    SendMail            = @{
+                        Header = 'Application X disc space report'
+                        # To     = 'bob@contoso.com'
+                    }
                 }
-                SendMail            = @{
-                    # Header = 'Application X disc space report'
-                    To = 'bob@contoso.com'
+                $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
+
+                .$testScript @testParams
+                        
+                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                (&$MailAdminParams) -and 
+                ($Message -like "*Property 'SendMail.To' not found*")
+                }
+                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                    $EntryType -eq 'Error'
                 }
             }
-            $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
+            It 'is missing property Header' {
+                $testJsonFile = @{
+                    ComputerName        = @('PC1', 'PC2')
+                    ColorFreeSpaceBelow = @{
+                        Red    = 10
+                        Orange = 15
+                    }
+                    SendMail            = @{
+                        # Header = 'Application X disc space report'
+                        To = 'bob@contoso.com'
+                    }
+                }
+                $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
 
-            .$testScript @testParams
+                .$testScript @testParams
                         
-            Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                 (&$MailAdminParams) -and 
                 ($Message -like "*Property 'SendMail.Header' not found*")
-            }
-            Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                $EntryType -eq 'Error'
+                }
+                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                    $EntryType -eq 'Error'
+                }
             }
         }
         Context 'the property ColorFreeSpaceBelow' {
@@ -182,58 +204,58 @@ Describe 'send an e-mail to the admin when' {
                 }
             }
         }
-        It 'the property ComputerName contains duplicates' {
-            $testJsonFile = @{
-                ComputerName        = @('PC1', 'PC2', 'PC2')
-                ColorFreeSpaceBelow = @{
-                    Red    = 10
-                    Orange = 15
-                }
-                SendMail            = @{
-                    Header = 'Application X disc space report'
-                    To     = 'bob@contoso.com'
-                }
-            }
-            $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
-
-            .$testScript @testParams
-                        
-            Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and 
-                ($Message -like "*Property 'ComputerName' contains the duplicate value 'PC2'*")
-            }
-            Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                $EntryType -eq 'Error'
-            }
-        }
-        It 'the property ExcludeDrive contains an invalid string' {
-            $testJsonFile = @{
-                ComputerName        = @('PC1')
-                ExcludeDrive        = @(
-                    @{
-                        ComputerName = '*'
-                        DriveLetter  = 'dd'
+        Context 'the property ExcludeDrive' {
+            It 'ComputerName is missing' {
+                $testJsonFile = @{
+                    ComputerName = @('PC1')
+                    ExcludeDrive = @(
+                        @{
+                            ComputerName = ''
+                            DriveLetter  = 'c'
+                        }
+                    )
+                    SendMail     = @{
+                        Header = 'Application X disc space report'
+                        To     = 'bob@contoso.com'
                     }
-                )
-                ColorFreeSpaceBelow = @{
-                    Red    = 10
-                    Orange = 15
                 }
-                SendMail            = @{
-                    Header = 'Application X disc space report'
-                    To     = 'bob@contoso.com'
+                $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
+
+                .$testScript @testParams
+                        
+                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                (&$MailAdminParams) -and 
+                ($Message -like "*A computer name is mandatory for an excluded drive. Use the wildcard '*' to excluded the drive letter for all computers.*")
+                }
+                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                    $EntryType -eq 'Error'
                 }
             }
-            $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
+            It 'DriveLetter contains an invalid string' {
+                $testJsonFile = @{
+                    ComputerName = @('PC1')
+                    ExcludeDrive = @(
+                        @{
+                            ComputerName = '*'
+                            DriveLetter  = 'dd'
+                        }
+                    )
+                    SendMail     = @{
+                        Header = 'Application X disc space report'
+                        To     = 'bob@contoso.com'
+                    }
+                }
+                $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
 
-            .$testScript @testParams
+                .$testScript @testParams
                         
-            Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                 (&$MailAdminParams) -and 
                 ($Message -like "*Excluded drive letter 'dd' is not a single alphabetical character*")
-            }
-            Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                $EntryType -eq 'Error'
+                }
+                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                    $EntryType -eq 'Error'
+                }
             }
         }
     }
@@ -368,7 +390,7 @@ Describe 'when all tests pass' {
             $drives.PSComputerName | Should -Contain $_.PSComputerName
             $drives.DeviceID | Should -Contain $_.DeviceID
         }
-    } -Tag test
+    }
     Context 'export an Excel file' {
         BeforeAll {
             $testExportedExcelRows = @(
