@@ -69,8 +69,8 @@ Describe 'send an e-mail to the admin when' {
                     }
                 )
                 ColorFreeSpaceBelow = @{
-                    Red    = 10
-                    Orange = 15
+                    Type  = '%'
+                    Value = @{Orange = 15; Red = 10 }
                 }
                 SendMail            = @{
                     Header = 'Application X disc space report'
@@ -137,10 +137,52 @@ Describe 'send an e-mail to the admin when' {
             }
         }
         Context 'the property ColorFreeSpaceBelow' {
-            It 'is not a key value pair' {
+            It 'is not a valid object' {
+                $testJsonFile = @{
+                    ComputerName        = @("PC1", "PC2")
+                    ColorFreeSpaceBelow = $null
+                    SendMail            = @{
+                        Header = "Application X disc space report"
+                        To     = "bob@contoso.com"
+                    }
+                }
+
+                $testValue = @(
+                    5,
+                    @{
+                        Value = 5
+                    },
+                    @{
+                        Value = @{red = 10 }
+                    },
+                    @{
+                        Type = '%'
+                    }
+                )
+
+                $testValue | ForEach-Object {
+                    $testJsonFile.ColorFreeSpaceBelow = $_
+                    $testJsonFile | ConvertTo-Json -Depth 3 | 
+                    Out-File @testOutParams
+    
+                    .$testScript @testParams
+                }
+                            
+                Should -Invoke Send-MailHC -Exactly $testValue.Count -ParameterFilter {
+                        (&$MailAdminParams) -and 
+                        ($Message -like "*Property 'ColorFreeSpaceBelow' is not a valid object. A valid object has the format*")
+                }
+                Should -Invoke Write-EventLog -Exactly $testValue.Count -ParameterFilter {
+                    $EntryType -eq 'Error'
+                }
+            }
+            It "is not with 'Type' set to 'GB' or '%'" {
                 @{
                     ComputerName        = @("PC1", "PC2")
-                    ColorFreeSpaceBelow = 5
+                    ColorFreeSpaceBelow = @{
+                        Type  = 'wrong'
+                        Value = @{Red = 5 }
+                    }
                     SendMail            = @{
                         Header = "Application X disc space report"
                         To     = "bob@contoso.com"
@@ -151,7 +193,7 @@ Describe 'send an e-mail to the admin when' {
                             
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and 
-                        ($Message -like "*Property 'ColorFreeSpaceBelow' is not a key value pair of a color with a percentage number*")
+                        ($Message -like "*Property 'ColorFreeSpaceBelow' only supports type 'GB' or '%'*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
@@ -161,7 +203,8 @@ Describe 'send an e-mail to the admin when' {
                 @{
                     ComputerName        = @("PC1", "PC2")
                     ColorFreeSpaceBelow = @{
-                        Red = 'text'
+                        Type  = 'GB'
+                        Value = @{Red = 'text' }
                     }
                     SendMail            = @{
                         Header = "Application X disc space report"
@@ -183,7 +226,8 @@ Describe 'send an e-mail to the admin when' {
                 @{
                     ComputerName        = @("PC1", "PC2")
                     ColorFreeSpaceBelow = @{
-                        wrong = 15
+                        Type  = 'GB'
+                        Value = @{Wrong = 15 }
                     }
                     SendMail            = @{
                         Header = "Application X disc space report"
@@ -342,8 +386,11 @@ Describe 'when all tests pass' {
                 }
             )
             ColorFreeSpaceBelow = @{
-                Red    = 10
-                Orange = 15
+                Type  = 'GB'
+                Value = @{
+                    Red    = 10
+                    Orange = 15
+                }
             }
             SendMail            = @{
                 Header = 'Application X disc space report'

@@ -37,8 +37,8 @@
     .PARAMETER ColorFreeSpaceBelow
         Colors used in the Excel file for visually marking low disk space.
         Ex:
-        - Red    : 10 > less than 10% free disk space is colored red
-        - Orange : 15 > less than 15% free disk space is colored orange
+        - Red    : 10 > less than 10GB free disk space is colored red
+        - Orange : 15 > less than 15GB free disk space is colored orange
 
     .PARAMETER SendMail.Header
         The header to use in the e-mail sent to the end user. If SendMail.Header
@@ -122,11 +122,26 @@ Begin {
                     Write-EventLog @EventVerboseParams -Message $M
                 }
             }
+
+            $highlightExcelRow = [Ordered]@{ }
+
             if ($ColorFreeSpaceBelow = $file.ColorFreeSpaceBelow) {
-                if (-not ($ColorFreeSpaceBelow -is [PSCustomObject])) {
-                    throw "Property 'ColorFreeSpaceBelow' is not a key value pair of a color with a percentage number."
+                if (
+                    (-not ($ColorFreeSpaceBelow -is [PSCustomObject])) -or
+                    (-not $ColorFreeSpaceBelow.Type) -or
+                    (-not $ColorFreeSpaceBelow.Value) -or
+                    (-not ($ColorFreeSpaceBelow.Value -is [PSCustomObject]))
+                ) {
+                    throw "Property 'ColorFreeSpaceBelow' is not a valid object. A valid object has the format @{Type='GB'; Value=@{'Red'=10; 'Orange'=15}}."
                 }
-                $ColorFreeSpaceBelow.PSObject.Properties | ForEach-Object {
+
+                if ($ColorFreeSpaceBelow.Type -notMatch '^GB$|^%$') {
+                    throw "Property 'ColorFreeSpaceBelow' only supports type 'GB' or '%'."
+                }                
+
+                $ColorFreeSpaceBelow.Value.PSObject.Properties | 
+                Sort-Object 'Value' | 
+                ForEach-Object {
                     if (-not ($_.Value -is [Int])) {
                         throw "Property 'ColorFreeSpaceBelow' with color '$($_.Name)' contains value '$($_.Value)' that is not a number."
                     }
@@ -138,6 +153,14 @@ Begin {
                     Catch {
                         Throw "Property 'ColorFreeSpaceBelow' with 'Color' value '$ColorValue' is not valid because it's not a proper color"
                     }
+
+                    $highlightExcelRow.Add(
+                        $_.Value, [System.Drawing.Color]$_.Name
+                    )
+
+                    $M = "Highlight Excel row with free space lower than '{0}{1}' in '{2}'" -f $_.Value, $ColorFreeSpaceBelow.Type, $_.Name
+                    Write-Verbose $M
+                    Write-EventLog @EventVerboseParams -Message $M
                 }
             }
         }
@@ -204,6 +227,7 @@ End {
             Path         = "$LogFile.xlsx"
             AutoSize     = $true
             FreezeTopRow = $true
+            PassThru     = $true
         }
         $mailParams = @{
             To        = $SendMail.To
@@ -215,11 +239,26 @@ End {
             Save      = "$LogFile - Mail.html"
         }
 
-        #region Export data to Excel
         if ($drives) {
+            #region Export data to Excel
             $excelParams.WorksheetName = $excelParams.TableName = 'Drives'
 
-            $drives | Select-Object -Property @{
+            $column = @{}
+
+            if ($ColorFreeSpaceBelow.Type -eq 'GB') { 
+                $column.Color = 'F'
+                $column.Sort = 'FreeSpace'
+            }
+            elseif ($ColorFreeSpaceBelow.Type -eq '%') {
+                $column.Color = 'G' 
+                $column.Sort = 'Free'
+            }
+            else {
+                $column.Sort = 'ComputerName'
+            }
+
+            $excelWorkbook = $drives | 
+            Select-Object -Property @{
                 Name       = 'ComputerName'
                 Expression = { $_.PSComputerName }
             },
@@ -250,28 +289,63 @@ End {
                 Expression = { 
                     [Math]::Round( ($_.FreeSpace / $_.Size) * 100, 2) 
                 }
-            } |
+            } | 
+            Sort-Object $column.Sort |
             Export-Excel @excelParams -AutoNameRange -CellStyleSB {
                 Param (
-                    $WorkSheet,
+                    $workSheet,
                     $TotalRows,
                     $LastColumn
                 )
 
                 @(
-                    $WorkSheet.Names[
+                    $workSheet.Names[
                     'Size', 'FreeSpace', 'UsedSpace'
                     ].Style).ForEach( {
                         $_.NumberFormat.Format = '?\ \G\B'
                     }
                 )
 
-                $WorkSheet.Cells.Style.HorizontalAlignment = 'Center'
+                @(
+                    $workSheet.Names['Free'].Style).ForEach( {
+                        $_.NumberFormat.Format = '? \%'
+                    }
+                )
+
+                $workSheet.Cells.Style.HorizontalAlignment = 'Center'
             }
+            #endregion
 
             $mailParams.Attachments = $excelParams.Path
+
+            #region Format percentage and set row color
+            if ($highlightExcelRow) {
+                $workSheet = $excelWorkbook.Workbook.Worksheets[$excelParams.WorkSheetName]
+
+                $conditionParams = @{
+                    WorkSheet = $workSheet
+                    Range     = '{0}2:{0}{1}' -f 
+                    $column.Color, $workSheet.Dimension.Rows
+                }
+
+                $firstTimeThrough = $true
+                foreach ($h in $highlightExcelRow.GetEnumerator()) {
+                    if ($firstTimeThrough) {
+                        $firstTimeThrough = $False
+                        Add-ConditionalFormatting @conditionParams -BackgroundColor $h.Value.Name -RuleType LessThan -ConditionValue $h.Name
+                    }
+                    else {
+                        Add-ConditionalFormatting @conditionParams -BackgroundColor $h.Value.Name -RuleType Between -ConditionValue $h.Name -ConditionValue2 $previousValue
+                    }
+
+                    $previousValue = $h.Name
+                }
+            }
+            #endregion
+
+            $excelWorkbook.Save()
+            $excelWorkbook.Dispose()
         }
-        #endregion
 
         #region Count results, errors, ...
         $counter = @{
