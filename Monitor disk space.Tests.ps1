@@ -264,6 +264,13 @@ Describe 'when all tests pass' {
             }
             [PSCustomObject]@{
                 PSComputerName = 'PC1'
+                FreeSpace      = 4523646976
+                Size           = 5366607872
+                VolumeName     = 'EE'
+                DeviceID       = 'E:'
+            }
+            [PSCustomObject]@{
+                PSComputerName = 'PC1'
                 FreeSpace      = 53687091200
                 Size           = 107374182400
                 VolumeName     = 'DDD'
@@ -303,7 +310,7 @@ Describe 'when all tests pass' {
             ExcludeDrive        = @(
                 @{
                     ComputerName = 'PC1'
-                    DriveLetter  = 'B'
+                    DriveLetter  = @('B', 'E')
                 }
                 @{
                     ComputerName = 'PC2'
@@ -361,7 +368,7 @@ Describe 'when all tests pass' {
             $drives.PSComputerName | Should -Contain $_.PSComputerName
             $drives.DeviceID | Should -Contain $_.DeviceID
         }
-    }
+    } -Tag test
     Context 'export an Excel file' {
         BeforeAll {
             $testExportedExcelRows = @(

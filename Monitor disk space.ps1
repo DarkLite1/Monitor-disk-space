@@ -84,14 +84,22 @@ Begin {
             if (-not $SendMail.Header) {
                 throw "Property 'SendMail.Header' not found."
             }
-            if ($ExcludedDrives = $file.ExcludeDrive) {
-                foreach ($e in $ExcludedDrives) {
-                    if (-not $e.ComputerName) {
-                        throw "A computer name is mandatory for an excluded drive. Use the wildcard '*' to excluded the drive letter for all computers."    
+            $ExcludedDrives = foreach ($e in $file.ExcludeDrive) {
+                if (-not $e.ComputerName) {
+                    throw "A computer name is mandatory for an excluded drive. Use the wildcard '*' to excluded the drive letter for all computers."    
+                }
+                foreach ($d in $e.DriveLetter) {
+                    if ($d -notMatch '^[A-Z]$' ) {
+                        throw "Excluded drive letter '$d' is not a single alphabetical character"    
                     }
-                    if ($e.DriveLetter -notMatch '^[A-Z]$' ) {
-                        throw "Excluded drive letter '$($e.DriveLetter)' is not a single alphabetical character"    
+                    [PSCustomObject]@{
+                        ComputerName = $e.ComputerName
+                        DriveLetter  = '{0}:' -f $d.ToUpper()
                     }
+                    
+                    $M = "Exclude drive letter '$d' on computer '$($e.ComputerName)'"
+                    Write-Verbose $M
+                    Write-EventLog @EventVerboseParams -Message $M
                 }
             }
             if (-not ($ColorFreeSpaceBelow = $file.ColorFreeSpaceBelow)) {
@@ -120,13 +128,6 @@ Begin {
 }       
 Process {
     Try {
-        #region Convert excluded drive letters
-        foreach ($e in $ExcludedDrives) {
-            $e.DriveLetter = '{0}:' -f $e.DriveLetter.ToUpper()
-            Write-Verbose "Exclude drive '$($e.DriveLetter)' on computer '$($e.ComputerName)'"
-        }
-        #endregion
-
         #region Get drives
         $M = 'Get hard disk details for {0} computers' -f $ComputerNames.Count
         Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
