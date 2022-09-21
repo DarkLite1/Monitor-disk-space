@@ -75,14 +75,25 @@ Begin {
             $ComputerNames | Group-Object | Where-Object { $_.Count -ge 2 } | ForEach-Object {
                 throw "Property 'ComputerName' contains the duplicate value '$($_.Name)'."
             }
-            if (-not ($ExcludedDrives = $file.ExcludeDrive)) {
-                throw "Property 'ExcludeDrive' not found."
+            if (-not ($SendMail = $file.SendMail)) {
+                throw "Property 'SendMail' not found."
             }
-            $ExcludedDrives | Where-Object { $_ -notMatch '^[A-Z]$' } | 
-            ForEach-Object {
-                throw "Excluded drive '$_' is not a single alphabetical character"
+            if (-not $SendMail.To) {
+                throw "Property 'SendMail.To' not found."
             }
-            
+            if (-not $SendMail.Header) {
+                throw "Property 'SendMail.Header' not found."
+            }
+            if ($ExcludedDrives = $file.ExcludeDrive) {
+                foreach ($e in $ExcludedDrives) {
+                    if (-not $e.ComputerName) {
+                        throw "A computer name is mandatory for an excluded drive. Use the wildcard '*' to excluded the drive letter for all computers."    
+                    }
+                    if ($e.DriveLetter -notMatch '^[A-Z]$' ) {
+                        throw "Excluded drive letter '$($e.DriveLetter)' is not a single alphabetical character"    
+                    }
+                }
+            }
             if (-not ($ColorFreeSpaceBelow = $file.ColorFreeSpaceBelow)) {
                 throw "Property 'ColorFreeSpaceBelow' not found."
             }
@@ -93,15 +104,6 @@ Begin {
                 if (-not ($_.Value -is [Int])) {
                     throw "Property 'ColorFreeSpaceBelow' with color '$($_.Name)' contains value '$($_.Value)' that is not a number."
                 }
-            }
-            if (-not ($SendMail = $file.SendMail)) {
-                throw "Property 'SendMail' not found."
-            }
-            if (-not $SendMail.To) {
-                throw "Property 'SendMail.To' not found."
-            }
-            if (-not $SendMail.Header) {
-                throw "Property 'SendMail.Header' not found."
             }
         }
         catch {
@@ -119,10 +121,9 @@ Begin {
 Process {
     Try {
         #region Convert excluded drive letters
-        $ExcludedDrives = $ExcludedDrives | ForEach-Object { 
-            $driveLetter = '{0}:' -f $_.ToUpper()
-            Write-Verbose "Exclude drive '$driveLetter'"
-            $driveLetter
+        foreach ($e in $ExcludedDrives) {
+            $e.DriveLetter = '{0}:' -f $e.DriveLetter.ToUpper()
+            Write-Verbose "Exclude drive '$($e.DriveLetter)' on computer '$($e.ComputerName)'"
         }
         #endregion
 
@@ -136,14 +137,31 @@ Process {
             ErrorAction = 'SilentlyContinue'
             Verbose     = $false
         }
-        $drives = foreach ($computer in $ComputerNames) {
-            Write-Verbose "Get hard disk details for '$computer'"
-            Get-CimInstance @params -ComputerName $computer |
-            Where-Object {
-                ($ExcludedDrives -notContains $_.DeviceID)
+        [array]$drives = foreach ($computer in $ComputerNames) {
+            Write-Verbose "Get drives on computer '$computer'"
+            Get-CimInstance @params -ComputerName $computer
+        }
+        #endregion
+
+        #region Filter out excluded drives
+        foreach ($e in $ExcludedDrives) {
+            if ($e.ComputerName -eq '*') {
+                $drives = $drives.Where({ $_.DeviceID -ne $e.DriveLetter })
+            }
+            else {
+                $drives = $drives.Where({ 
+                        -not (
+                            ($_.PSComputerName -eq $e.ComputerName) -and
+                            ($_.DeviceID -eq $e.DriveLetter)
+                        )
+                    }
+                )
             }
         }
         #endregion
+
+        $M = "Found '{0}' drives" -f $drives.Count
+        Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
     }
     Catch {
         Write-Warning $_
@@ -275,16 +293,9 @@ End {
             <table>
                 <tr><th>Computers</th><td>{0}</td></tr>
                 <tr><th>Drives</th><td>{1}</td></tr>
-                {2}
             </table>" -f 
         $counter.computers,
-        $counter.drives,
-        $(
-            if ($ExcludedDrives) {
-                '<tr><th>Excluded drives</th><td>{0}</td></tr>' -f
-                ($ExcludedDrives -join ', ')
-            }
-        )
+        $counter.drives
 
         if ($mailParams.Attachments) {
             $mailParams.Message += '<p><i>* Check the attachment for details</i></p>'

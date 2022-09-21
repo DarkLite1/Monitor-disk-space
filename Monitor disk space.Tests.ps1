@@ -58,11 +58,16 @@ Describe 'send an e-mail to the admin when' {
             }
         }
         It 'is missing property <_>' -ForEach @(
-            'ComputerName', 'ExcludeDrive', 'ColorFreeSpaceBelow', 'SendMail'
+            'ComputerName', 'ColorFreeSpaceBelow', 'SendMail'
         ) {
             $testJsonFile = @{
                 ComputerName        = @('PC1', 'PC2')
-                ExcludeDrive        = @('S')
+                ExcludeDrive        = @(
+                    @{
+                        ComputerName = '*'
+                        DriveLetter  = 'S'
+                    }
+                )
                 ColorFreeSpaceBelow = @{
                     Red    = 10
                     Orange = 15
@@ -88,7 +93,6 @@ Describe 'send an e-mail to the admin when' {
         It 'is missing property SendMail.To' {
             $testJsonFile = @{
                 ComputerName        = @('PC1', 'PC2')
-                ExcludeDrive        = @('S')
                 ColorFreeSpaceBelow = @{
                     Red    = 10
                     Orange = 15
@@ -113,7 +117,6 @@ Describe 'send an e-mail to the admin when' {
         It 'is missing property SendMail.Header' {
             $testJsonFile = @{
                 ComputerName        = @('PC1', 'PC2')
-                ExcludeDrive        = @('S')
                 ColorFreeSpaceBelow = @{
                     Red    = 10
                     Orange = 15
@@ -139,7 +142,6 @@ Describe 'send an e-mail to the admin when' {
             It 'is not a key value pair' {
                 @{
                     ComputerName        = @("PC1", "PC2")
-                    ExcludeDrive        = @("S")
                     ColorFreeSpaceBelow = 5
                     SendMail            = @{
                         Header = "Application X disc space report"
@@ -160,7 +162,6 @@ Describe 'send an e-mail to the admin when' {
             It 'is not a color with a number' {
                 @{
                     ComputerName        = @("PC1", "PC2")
-                    ExcludeDrive        = @("S")
                     ColorFreeSpaceBelow = @{
                         Red = 'text'
                     }
@@ -184,7 +185,6 @@ Describe 'send an e-mail to the admin when' {
         It 'the property ComputerName contains duplicates' {
             $testJsonFile = @{
                 ComputerName        = @('PC1', 'PC2', 'PC2')
-                ExcludeDrive        = @('S')
                 ColorFreeSpaceBelow = @{
                     Red    = 10
                     Orange = 15
@@ -209,7 +209,12 @@ Describe 'send an e-mail to the admin when' {
         It 'the property ExcludeDrive contains an invalid string' {
             $testJsonFile = @{
                 ComputerName        = @('PC1')
-                ExcludeDrive        = @('dd')
+                ExcludeDrive        = @(
+                    @{
+                        ComputerName = '*'
+                        DriveLetter  = 'dd'
+                    }
+                )
                 ColorFreeSpaceBelow = @{
                     Red    = 10
                     Orange = 15
@@ -225,7 +230,7 @@ Describe 'send an e-mail to the admin when' {
                         
             Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                 (&$MailAdminParams) -and 
-                ($Message -like "*Excluded drive 'dd' is not a single alphabetical character*")
+                ($Message -like "*Excluded drive letter 'dd' is not a single alphabetical character*")
             }
             Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                 $EntryType -eq 'Error'
@@ -257,6 +262,13 @@ Describe 'when all tests pass' {
                 VolumeName     = 'OS'
                 DeviceID       = 'C:'
             }
+            [PSCustomObject]@{
+                PSComputerName = 'PC1'
+                FreeSpace      = 53687091200
+                Size           = 107374182400
+                VolumeName     = 'DDD'
+                DeviceID       = 'D:'
+            }
         } -ParameterFilter {
             $ComputerName -eq 'PC1'
         }
@@ -268,13 +280,40 @@ Describe 'when all tests pass' {
                 VolumeName     = 'BLA'
                 DeviceID       = 'A:'
             }
+            [PSCustomObject]@{
+                PSComputerName = 'PC2'
+                FreeSpace      = 53687091200
+                Size           = 107374182400
+                VolumeName     = 'CCC'
+                DeviceID       = 'C:'
+            }
+            [PSCustomObject]@{
+                PSComputerName = 'PC2'
+                FreeSpace      = 53687091200
+                Size           = 107374182400
+                VolumeName     = 'DDD'
+                DeviceID       = 'D:'
+            }
         } -ParameterFilter {
             $ComputerName -eq 'PC2'
         }
 
         $testJsonFile = @{
             ComputerName        = @('PC1', 'PC2')
-            ExcludeDrive        = @('B', 'c')
+            ExcludeDrive        = @(
+                @{
+                    ComputerName = 'PC1'
+                    DriveLetter  = 'B'
+                }
+                @{
+                    ComputerName = 'PC2'
+                    DriveLetter  = 'c'
+                }
+                @{
+                    ComputerName = '*'
+                    DriveLetter  = 'D'
+                }
+            )
             ColorFreeSpaceBelow = @{
                 Red    = 10
                 Orange = 15
@@ -301,17 +340,24 @@ Describe 'when all tests pass' {
         Should -Invoke Get-CimInstance -Times 2 -Exactly -Scope Describe
     }
     It 'ignore excluded drives' {
-        $drives | Should -HaveCount 2
-        @(
+        $testDrives = @(
             [PSCustomObject]@{
                 PSComputerName = 'PC1'
                 DeviceID       = 'A:'
             }
             [PSCustomObject]@{
+                PSComputerName = 'PC1'
+                DeviceID       = 'C:'
+            }
+            [PSCustomObject]@{
                 PSComputerName = 'PC2'
                 DeviceID       = 'A:'
             }
-        ) | ForEach-Object {
+        )
+
+        $drives | Should -HaveCount $testDrives.Count
+        
+        $testDrives | ForEach-Object {
             $drives.PSComputerName | Should -Contain $_.PSComputerName
             $drives.DeviceID | Should -Contain $_.DeviceID
         }
@@ -327,6 +373,15 @@ Describe 'when all tests pass' {
                     UsedSpace    = '4'
                     FreeSpace    = '1'
                     Free         = '20'
+                }
+                @{
+                    ComputerName = 'PC1'
+                    Drive        = 'C:'
+                    DriveName    = 'OS'
+                    Size         = '5'
+                    UsedSpace    = '0.79'
+                    FreeSpace    = '4.21'
+                    Free         = '84.29'
                 }
                 @{
                     ComputerName = 'PC2'
@@ -352,9 +407,9 @@ Describe 'when all tests pass' {
         It 'with the correct data in the rows' {
             foreach ($testRow in $testExportedExcelRows) {
                 $actualRow = $actual | Where-Object {
-                    $_.ComputerName -eq $testRow.ComputerName
+                    ($_.ComputerName -eq $testRow.ComputerName) -and
+                    ($_.Drive -eq $testRow.Drive)
                 }
-                $actualRow.Drive | Should -Be $testRow.Drive
                 $actualRow.DriveName | Should -Be $testRow.DriveName
                 $actualRow.Size | Should -Be $testRow.Size
                 $actualRow.FreeSpace | Should -Be $testRow.FreeSpace
@@ -367,11 +422,10 @@ Describe 'when all tests pass' {
         BeforeAll {
             $testMail = @{
                 Priority    = 'Normal'
-                Subject     = '2 computers, 2 drives'
+                Subject     = '2 computers, 3 drives'
                 Message     = "*<p>Scan results of the hard disks:</p>*
                 *<tr><th>Computers</th><td>2</td></tr>*
-                *<tr><th>Drives</th><td>2</td></tr>*
-                *<tr><th>Excluded drives</th><td>B:, C:</td></tr>*<p><i>* Check the attachment for details</i></p>*"
+                *<tr><th>Drives</th><td>3</td></tr>*<p><i>* Check the attachment for details</i></p>*"
                 To          = $testJsonFile.SendMail.To
                 Bcc         = $ScriptAdmin
                 Attachments = '*.xlsx'
@@ -384,7 +438,7 @@ Describe 'when all tests pass' {
             $mailParams.Subject | Should -Be $testMail.Subject
             $mailParams.Attachments | Should -BeLike $testMail.Attachments
             $mailParams.Message | Should -BeLike $testMail.Message
-        } -Tag test
+        }
         It 'Everything' {
             Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
                 ($To -eq $testMail.To) -and
