@@ -28,11 +28,11 @@
         "ExcludeDrive": [
             {
                 "ComputerName": "PC1",
-                "DriveLetter": ["B"]
+                "DriveLetter": ["B", "D"]
             }
         ]
 
-        Exclude drive letter 'B' on computer 'PC1'.
+        Exclude drive letters 'B' and 'D' on computer 'PC1'.
 
     .PARAMETER ColorFreeSpaceBelow
         Colors used in the Excel file for visually marking low disk space.
