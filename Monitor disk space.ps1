@@ -247,9 +247,9 @@ End {
 
         #region Count results, errors, ...
         $counter = @{
-            drives    = ($drives | Measure-Object).Count
+            drives    = $drives.Count
             computers = ($ComputerNames | Measure-Object).Count
-            errors    = ($Error.Exception.Message | Measure-Object).Count
+            errors    = $Error.Count
         }
         #endregion
 
