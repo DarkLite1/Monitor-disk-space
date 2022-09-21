@@ -261,7 +261,6 @@ End {
         $(if ($counter.computers -ne 1) { 's' }), 
         $counter.drives,
         $(if ($counter.drives -ne 1) { 's' })
-
         #endregion
 
         if ($counter.errors) {
@@ -293,9 +292,7 @@ End {
             <table>
                 <tr><th>Computers</th><td>{0}</td></tr>
                 <tr><th>Drives</th><td>{1}</td></tr>
-            </table>" -f 
-        $counter.computers,
-        $counter.drives
+            </table>" -f $counter.computers, $counter.drives
 
         if ($mailParams.Attachments) {
             $mailParams.Message += '<p><i>* Check the attachment for details</i></p>'
