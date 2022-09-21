@@ -14,6 +14,25 @@
 
     .PARAMETER ExcludeDrive
         Collection of drive letters to excluded from the report.
+        
+        "ExcludeDrive": [
+            {
+                "ComputerName": "*",
+                "DriveLetter": ["S"]
+            }
+        ]
+
+        Exclude drive letter 'S' for all computers because the wildcard '*' is 
+        used.
+
+        "ExcludeDrive": [
+            {
+                "ComputerName": "PC1",
+                "DriveLetter": ["B"]
+            }
+        ]
+
+        Exclude drive letter 'B' on computer 'PC1'.
 
     .PARAMETER ColorFreeSpaceBelow
         Colors used in the Excel file for visually marking low disk space.
@@ -22,7 +41,8 @@
         - Orange : 15 > less than 15% free disk space is colored orange
 
     .PARAMETER SendMail.Header
-        The header to use in the e-mail sent t the end user.
+        The header to use in the e-mail sent to the end user. If SendMail.Header
+        is not provided the ScriptName will be used.
 
     .PARAMETER SendMail.To
         List of e-mail addresses where to send the e-mail too.
