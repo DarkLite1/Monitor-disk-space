@@ -135,30 +135,6 @@ Describe 'send an e-mail to the admin when' {
                     $EntryType -eq 'Error'
                 }
             }
-            It 'is missing property Header' {
-                $testJsonFile = @{
-                    ComputerName        = @('PC1', 'PC2')
-                    ColorFreeSpaceBelow = @{
-                        Red    = 10
-                        Orange = 15
-                    }
-                    SendMail            = @{
-                        # Header = 'Application X disc space report'
-                        To = 'bob@contoso.com'
-                    }
-                }
-                $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
-
-                .$testScript @testParams
-                        
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and 
-                ($Message -like "*Property 'SendMail.Header' not found*")
-                }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
-                }
-            }
         }
         Context 'the property ColorFreeSpaceBelow' {
             It 'is not a key value pair' {
@@ -450,6 +426,7 @@ Describe 'when all tests pass' {
     Context 'send a mail to the user with' {
         BeforeAll {
             $testMail = @{
+                Header      = $testJsonFile.SendMail.Header
                 Priority    = 'Normal'
                 Subject     = '2 computers, 3 drives'
                 Message     = "*<p>Scan results of the hard disks:</p>*
@@ -461,6 +438,7 @@ Describe 'when all tests pass' {
             }
         }
         It 'the correct arguments' {
+            $mailParams.Header | Should -Be $testMail.Header
             $mailParams.To | Should -Be $testMail.To
             $mailParams.Bcc | Should -Be $testMail.Bcc
             $mailParams.Priority | Should -Be $testMail.Priority
@@ -470,6 +448,7 @@ Describe 'when all tests pass' {
         }
         It 'Everything' {
             Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
+                ($Header -eq $testMail.Header) -and
                 ($To -eq $testMail.To) -and
                 ($Bcc -eq $testMail.Bcc) -and
                 ($Priority -eq $testMail.Priority) -and

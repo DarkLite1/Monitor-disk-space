@@ -81,8 +81,8 @@ Begin {
             if (-not $SendMail.To) {
                 throw "Property 'SendMail.To' not found."
             }
-            if (-not $SendMail.Header) {
-                throw "Property 'SendMail.Header' not found."
+            if (-not ($SendMailHeader = $SendMail.Header)) {
+                $SendMailHeader = $ScriptName
             }
             $ExcludedDrives = foreach ($e in $file.ExcludeDrive) {
                 if (-not $e.ComputerName) {
@@ -183,7 +183,7 @@ End {
             Message   = $null
             Subject   = $null
             LogFolder = $LogParams.LogFolder
-            Header    = $SendMail.Header
+            Header    = $SendMailHeader
             Save      = "$LogFile - Mail.html"
         }
 
