@@ -130,6 +130,14 @@ Begin {
                     if (-not ($_.Value -is [Int])) {
                         throw "Property 'ColorFreeSpaceBelow' with color '$($_.Name)' contains value '$($_.Value)' that is not a number."
                     }
+
+                    Try {
+                        $ColorValue = $_.Name
+                        $null = [System.Drawing.Color]$_.Name
+                    }
+                    Catch {
+                        Throw "Property 'ColorFreeSpaceBelow' with 'Color' value '$ColorValue' is not valid because it's not a proper color"
+                    }
                 }
             }
         }

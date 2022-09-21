@@ -179,6 +179,28 @@ Describe 'send an e-mail to the admin when' {
                     $EntryType -eq 'Error'
                 }
             }
+            It 'is an invalid color' {
+                @{
+                    ComputerName        = @("PC1", "PC2")
+                    ColorFreeSpaceBelow = @{
+                        wrong = 15
+                    }
+                    SendMail            = @{
+                        Header = "Application X disc space report"
+                        To     = "bob@contoso.com"
+                    }
+                } | ConvertTo-Json -Depth 3 | Out-File @testOutParams
+
+                .$testScript @testParams
+                            
+                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
+                        (&$MailAdminParams) -and 
+                        ($Message -like "*Property 'ColorFreeSpaceBelow' with 'Color' value 'wrong' is not valid because it's not a proper color*")
+                }
+                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
+                    $EntryType -eq 'Error'
+                }
+            }
         }
         Context 'the property ExcludeDrive' {
             It 'ComputerName is missing' {
