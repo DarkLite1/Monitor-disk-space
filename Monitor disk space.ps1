@@ -102,15 +102,14 @@ Begin {
                     Write-EventLog @EventVerboseParams -Message $M
                 }
             }
-            if (-not ($ColorFreeSpaceBelow = $file.ColorFreeSpaceBelow)) {
-                throw "Property 'ColorFreeSpaceBelow' not found."
-            }
-            if (-not ($ColorFreeSpaceBelow -is [PSCustomObject])) {
-                throw "Property 'ColorFreeSpaceBelow' is not a key value pair of a color with a percentage number."
-            }
-            $ColorFreeSpaceBelow.PSObject.Properties | ForEach-Object {
-                if (-not ($_.Value -is [Int])) {
-                    throw "Property 'ColorFreeSpaceBelow' with color '$($_.Name)' contains value '$($_.Value)' that is not a number."
+            if ($ColorFreeSpaceBelow = $file.ColorFreeSpaceBelow) {
+                if (-not ($ColorFreeSpaceBelow -is [PSCustomObject])) {
+                    throw "Property 'ColorFreeSpaceBelow' is not a key value pair of a color with a percentage number."
+                }
+                $ColorFreeSpaceBelow.PSObject.Properties | ForEach-Object {
+                    if (-not ($_.Value -is [Int])) {
+                        throw "Property 'ColorFreeSpaceBelow' with color '$($_.Name)' contains value '$($_.Value)' that is not a number."
+                    }
                 }
             }
         }
