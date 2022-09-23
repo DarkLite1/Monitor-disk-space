@@ -3,7 +3,7 @@
 
 <#
     .SYNOPSIS
-        Scan computers for free disk space.
+        Scan computers for free disk space and create a report.
 
     .DESCRIPTION
         This script reads a .JSON input file containing all the required 
