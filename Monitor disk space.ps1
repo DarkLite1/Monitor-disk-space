@@ -3,11 +3,16 @@
 
 <#
     .SYNOPSIS
-        Send an e-mail with the free disk space on computers.
+        Scan computers for free disk space.
 
     .DESCRIPTION
-        Send an e-mail with Excel file in attachment containing the drives found
-        on specific computers and their free disk space.
+        This script reads a .JSON input file containing all the required 
+        parameters (ComputerName, ...). Each computer is then scanned for its
+        hard drives and an Excel file is created containing an overview of the
+        drives found (drive letter, drive name, disk size, free space, ...).
+        
+        Check the Example.json file on how to create a correct input file. All
+        available parameters in the input file are explained below.
 
     .PARAMETER ComputerName
         Collection of computer names to scan for hard drives.
@@ -21,9 +26,7 @@
                 "DriveLetter": ["S"]
             }
         ]
-
-        Exclude drive letter 'S' for all computers because the wildcard '*' is 
-        used.
+        For all computers (wildcard '*') exclude drive letter 'S'.
 
         "ExcludeDrive": [
             {
@@ -31,17 +34,20 @@
                 "DriveLetter": ["B", "D"]
             }
         ]
-
-        Exclude drive letters 'B' and 'D' on computer 'PC1'.
+        On computer 'PC1' exclude drive letters 'B' and 'D' .
 
     .PARAMETER ColorFreeSpaceBelow
-        Colors used in the Excel file for visually marking low disk space.
-        Ex:
-        - Red    : 10 > less than 10GB free disk space is colored red
-        - Orange : 15 > less than 15GB free disk space is colored orange
+        Defines the colors used in the Excel file to indicate low free disk space below a specific percentage or amount of GB.
+
+        "ColorFreeSpaceBelow": {
+            "Type": "GB",
+            "Value": { "Red": 10, "Orange": 15 },
+            "?": "Type: GB | %"
+        },
+        Color the rows with free space less than 15GB orange and 10GB red.
 
     .PARAMETER SendMail.Header
-        The header to use in the e-mail sent to the end user. If SendMail.Header
+        The header to use in the e-mail sent to the users. If SendMail.Header
         is not provided the ScriptName will be used.
 
     .PARAMETER SendMail.To
