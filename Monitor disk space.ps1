@@ -271,7 +271,7 @@ End {
                 $column.Sort = 'ComputerName'
             }
 
-            $excelWorkbook = $drives | 
+            [array]$drives = $drives | 
             Select-Object -Property @{
                 Name       = 'ComputerName'
                 Expression = { $_.PSComputerName }
@@ -303,8 +303,9 @@ End {
                 Expression = { 
                     [Math]::Round( ($_.FreeSpace / $_.Size) * 100, 2) 
                 }
-            } | 
-            Sort-Object $column.Sort |
+            }
+            
+            $excelWorkbook = $drives | Sort-Object $column.Sort |
             Export-Excel @excelParams -AutoNameRange -CellStyleSB {
                 Param (
                     $workSheet,
@@ -403,12 +404,51 @@ End {
         }
 
         #region Send mail
+        $countedColorRows = if ($highlightExcelRow) {
+            $previousValue = $null
+            foreach ($h in $highlightExcelRow.GetEnumerator()) {
+                '<tr><th>{0}</th><td>{1}</td></tr>' -f 
+                $(
+                    if (-not $previousValue) {
+                        'less than {0}{1}' -f $h.Key, $ColorFreeSpaceBelow.Type
+                    }
+                    else {
+                        'between {0}{1} and {2}{1}' -f 
+                        $previousValue, $ColorFreeSpaceBelow.Type, $h.Key
+                    }
+                ),
+                $(
+                    $driveCounter = $drives.Where(
+                        {
+                            if (-not $previousValue) {
+                                $_."$($column.Sort)" -lt $h.Key
+                            }
+                            else {
+                                ($_."$($column.Sort)" -ge $previousValue) -and
+                                ($_."$($column.Sort)" -lt $h.Key)
+                            }
+                        }
+                    ).Count
+
+                    if ($driveCounter -eq 1) {
+                        '{0} drive' -f $driveCounter
+                    }
+                    else {
+                        '{0} drives' -f $driveCounter
+                    }
+                )
+                $previousValue = $h.Key
+            }
+        }
+
         $mailParams.Message += "
             <p>Scan results of the hard disks:</p>
             <table>
                 <tr><th>Computers</th><td>{0}</td></tr>
                 <tr><th>Drives</th><td>{1}</td></tr>
+                $countedColorRows
             </table>" -f $counter.computers, $counter.drives
+        
 
         if ($mailParams.Attachments) {
             $mailParams.Message += '<p><i>* Check the attachment for details</i></p>'

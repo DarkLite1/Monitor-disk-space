@@ -9,9 +9,10 @@ BeforeAll {
 
     $testScript = $PSCommandPath.Replace('.Tests.ps1', '.ps1')
     $testParams = @{
-        ScriptName = 'Test (Brecht)'
-        ImportFile = $testOutParams.FilePath
-        LogFolder  = New-Item 'TestDrive:/log' -ItemType Directory
+        ScriptName  = 'Test (Brecht)'
+        ScriptAdmin = 'admin@contoso.com'
+        ImportFile  = $testOutParams.FilePath
+        LogFolder   = New-Item 'TestDrive:/log' -ItemType Directory
     }
 
     Mock Get-CimInstance
@@ -27,7 +28,7 @@ Describe 'the mandatory parameters are' {
 Describe 'send an e-mail to the admin when' {
     BeforeAll {
         $MailAdminParams = {
-            ($To -eq $ScriptAdmin) -and ($Priority -eq 'High') -and 
+            ($To -eq $testParams.ScriptAdmin) -and ($Priority -eq 'High') -and 
             ($Subject -eq 'FAILURE')
         }    
     }
@@ -412,29 +413,6 @@ Describe 'when all tests pass' {
         }
 
         Should -Invoke Get-CimInstance -Times 2 -Exactly -Scope Describe
-    }
-    It 'ignore excluded drives' {
-        $testDrives = @(
-            [PSCustomObject]@{
-                PSComputerName = 'PC1'
-                DeviceID       = 'A:'
-            }
-            [PSCustomObject]@{
-                PSComputerName = 'PC1'
-                DeviceID       = 'C:'
-            }
-            [PSCustomObject]@{
-                PSComputerName = 'PC2'
-                DeviceID       = 'A:'
-            }
-        )
-
-        $drives | Should -HaveCount $testDrives.Count
-        
-        $testDrives | ForEach-Object {
-            $drives.PSComputerName | Should -Contain $_.PSComputerName
-            $drives.DeviceID | Should -Contain $_.DeviceID
-        }
     }
     Context 'export an Excel file' {
         BeforeAll {
