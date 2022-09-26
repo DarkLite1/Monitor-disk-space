@@ -73,7 +73,12 @@ Begin {
         Write-EventLog @EventStartParams
         Get-ScriptRuntimeHC -Start
         $error.Clear()
-        
+
+        #region Add color assembly
+        Add-Type -Assembly System.Drawing
+        Set-Culture 'en-US'
+        #endregion
+
         #region Create log folder
         try {
             $logParams = @{
