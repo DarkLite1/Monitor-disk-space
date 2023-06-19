@@ -382,12 +382,20 @@ End {
 
         if ($counter.errors) {
             #region Export errors to Excel
-            $excelParams.WorksheetName = $excelParams.TableName = 'Errors'
+            $exportErrorParams = @{
+                Path          = "$LogFile.xlsx"
+                WorkSheetName = 'Errors'
+                TableName     = 'Errors'
+                AutoSize      = $true
+                FreezeTopRow  = $true
+                PassThru      = $true
+            }
 
-            $Error.Exception.Message | Select-Object -Unique | 
-            Export-Excel @excelParams
+            $Error.Exception.Message | 
+            Select-Object @{Name = 'Error message'; Expression = { $_ } } |
+            Export-Excel @exportErrorParams
 
-            $mailParams.Attachments = $excelParams.Path
+            $mailParams.Attachments = $exportErrorParams.Path
             #endregion
             
             #region Mail subject, priority, message
