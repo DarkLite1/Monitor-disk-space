@@ -21,16 +21,16 @@ BeforeAll {
 }
 Describe 'the mandatory parameters are' {
     It '<_>' -ForEach 'ScriptName', 'ImportFile' {
-        (Get-Command $testScript).Parameters[$_].Attributes.Mandatory | 
+        (Get-Command $testScript).Parameters[$_].Attributes.Mandatory |
         Should -BeTrue
     }
 }
 Describe 'send an e-mail to the admin when' {
     BeforeAll {
         $MailAdminParams = {
-            ($To -eq $testParams.ScriptAdmin) -and ($Priority -eq 'High') -and 
+            ($To -eq $testParams.ScriptAdmin) -and ($Priority -eq 'High') -and
             ($Subject -eq 'FAILURE')
-        }    
+        }
     }
     It 'the log folder cannot be created' {
         $testNewParams = $testParams.clone()
@@ -39,7 +39,7 @@ Describe 'send an e-mail to the admin when' {
         .$testScript @testNewParams
 
         Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-            (&$MailAdminParams) -and 
+            (&$MailAdminParams) -and
             ($Message -like "*Failed creating the log folder 'xxx::\notExistingLocation'*")
         }
     }
@@ -47,11 +47,11 @@ Describe 'send an e-mail to the admin when' {
         It 'is not found' {
             $testNewParams = $testParams.clone()
             $testNewParams.ImportFile = 'nonExisting.json'
-    
+
             .$testScript @testNewParams
-    
+
             Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and 
+                (&$MailAdminParams) -and
                 ($Message -like "Cannot find path*nonExisting.json*")
             }
             Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
@@ -82,9 +82,9 @@ Describe 'send an e-mail to the admin when' {
             $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
 
             .$testScript @testParams
-                        
+
             Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and 
+                (&$MailAdminParams) -and
                 ($Message -like "*Property '$_' not found*")
             }
             Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
@@ -102,9 +102,9 @@ Describe 'send an e-mail to the admin when' {
             $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
 
             .$testScript @testParams
-                        
+
             Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and 
+                (&$MailAdminParams) -and
                 ($Message -like "*Property 'ComputerName' contains the duplicate value 'PC2'*")
             }
             Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
@@ -127,9 +127,9 @@ Describe 'send an e-mail to the admin when' {
                 $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
 
                 .$testScript @testParams
-                        
+
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and 
+                (&$MailAdminParams) -and
                 ($Message -like "*Property 'SendMail.To' not found*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
@@ -163,14 +163,14 @@ Describe 'send an e-mail to the admin when' {
 
                 $testValue | ForEach-Object {
                     $testJsonFile.ColorFreeSpaceBelow = $_
-                    $testJsonFile | ConvertTo-Json -Depth 3 | 
+                    $testJsonFile | ConvertTo-Json -Depth 3 |
                     Out-File @testOutParams
-    
+
                     .$testScript @testParams
                 }
-                            
+
                 Should -Invoke Send-MailHC -Exactly $testValue.Count -ParameterFilter {
-                        (&$MailAdminParams) -and 
+                        (&$MailAdminParams) -and
                         ($Message -like "*Property 'ColorFreeSpaceBelow' is not a valid object. A valid object has the format*")
                 }
                 Should -Invoke Write-EventLog -Exactly $testValue.Count -ParameterFilter {
@@ -191,9 +191,9 @@ Describe 'send an e-mail to the admin when' {
                 } | ConvertTo-Json -Depth 3 | Out-File @testOutParams
 
                 .$testScript @testParams
-                            
+
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and 
+                        (&$MailAdminParams) -and
                         ($Message -like "*Property 'ColorFreeSpaceBelow' only supports type 'GB' or '%'*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
@@ -214,9 +214,9 @@ Describe 'send an e-mail to the admin when' {
                 } | ConvertTo-Json -Depth 3 | Out-File @testOutParams
 
                 .$testScript @testParams
-                            
+
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and 
+                        (&$MailAdminParams) -and
                         ($Message -like "*Property 'ColorFreeSpaceBelow' with color 'Red' contains value 'text' that is not a number*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
@@ -237,9 +237,9 @@ Describe 'send an e-mail to the admin when' {
                 } | ConvertTo-Json -Depth 3 | Out-File @testOutParams
 
                 .$testScript @testParams
-                            
+
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and 
+                        (&$MailAdminParams) -and
                         ($Message -like "*Property 'ColorFreeSpaceBelow' with 'Color' value 'wrong' is not valid because it's not a proper color*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
@@ -265,9 +265,9 @@ Describe 'send an e-mail to the admin when' {
                 $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
 
                 .$testScript @testParams
-                        
+
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and 
+                (&$MailAdminParams) -and
                 ($Message -like "*A computer name is mandatory for an excluded drive. Use the wildcard '*' to excluded the drive letter for all computers.*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
@@ -291,9 +291,9 @@ Describe 'send an e-mail to the admin when' {
                 $testJsonFile | ConvertTo-Json -Depth 3 | Out-File @testOutParams
 
                 .$testScript @testParams
-                        
+
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                (&$MailAdminParams) -and 
+                (&$MailAdminParams) -and
                 ($Message -like "*Excluded drive letter 'dd' is not a single alphabetical character*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
@@ -408,7 +408,7 @@ Describe 'when all tests pass' {
                 ($ClassName -eq 'Win32_LogicalDisk') -and
                 ($Filter -eq 'DriveType = 3') -and
                 ($ComputerName -eq $_) -and
-                ($ErrorAction -eq 'SilentlyContinue') 
+                ($ErrorAction -eq 'SilentlyContinue')
             }
         }
 

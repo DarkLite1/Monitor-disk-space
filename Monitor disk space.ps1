@@ -6,11 +6,11 @@
         Scan computers for free disk space and create a report.
 
     .DESCRIPTION
-        This script reads a .JSON input file containing all the required 
+        This script reads a .JSON input file containing all the required
         parameters (ComputerName, ...). Each computer is then scanned for its
         hard drives and an Excel file is created containing an overview of the
         drives found (drive letter, drive name, disk size, free space, ...).
-        
+
         Check the Example.json file on how to create a correct input file. All
         available parameters in the input file are explained below.
 
@@ -19,7 +19,7 @@
 
     .PARAMETER ExcludeDrive
         Collection of drive letters to excluded from the report.
-        
+
         "ExcludeDrive": [
             {
                 "ComputerName": "*",
@@ -66,7 +66,7 @@ Param (
         $env:POWERSHELL_SCRIPT_ADMIN_BACKUP
     )
 )
-        
+
 Begin {
     Try {
         Import-EventLogParamsHC -Source $ScriptName
@@ -97,10 +97,10 @@ Begin {
         #region Import .json file
         $M = "Import .json file '$ImportFile'"
         Write-Verbose $M; Write-EventLog @EventVerboseParams -Message $M
-        
+
         $file = Get-Content -Path $ImportFile -Raw -EA Stop | ConvertFrom-Json
         #endregion
-        
+
         #region Test .json file properties
         try {
             if (-not ($ComputerNames = $file.ComputerName)) {
@@ -120,17 +120,17 @@ Begin {
             }
             $ExcludedDrives = foreach ($e in $file.ExcludeDrive) {
                 if (-not $e.ComputerName) {
-                    throw "A computer name is mandatory for an excluded drive. Use the wildcard '*' to excluded the drive letter for all computers."    
+                    throw "A computer name is mandatory for an excluded drive. Use the wildcard '*' to excluded the drive letter for all computers."
                 }
                 foreach ($d in $e.DriveLetter) {
                     if ($d -notMatch '^[A-Z]$' ) {
-                        throw "Excluded drive letter '$d' is not a single alphabetical character"    
+                        throw "Excluded drive letter '$d' is not a single alphabetical character"
                     }
                     [PSCustomObject]@{
                         ComputerName = $e.ComputerName
                         DriveLetter  = '{0}:' -f $d.ToUpper()
                     }
-                    
+
                     $M = "Exclude drive letter '$d' on computer '$($e.ComputerName)'"
                     Write-Verbose $M
                     Write-EventLog @EventVerboseParams -Message $M
@@ -151,28 +151,34 @@ Begin {
 
                 if ($ColorFreeSpaceBelow.Type -notMatch '^GB$|^%$') {
                     throw "Property 'ColorFreeSpaceBelow' only supports type 'GB' or '%'."
-                }                
+                }
 
-                $ColorFreeSpaceBelow.Value.PSObject.Properties | 
-                Sort-Object 'Value' | 
-                ForEach-Object {
-                    if (-not ($_.Value -is [Int])) {
-                        throw "Property 'ColorFreeSpaceBelow' with color '$($_.Name)' contains value '$($_.Value)' that is not a number."
+                foreach (
+                    $property in
+                    $ColorFreeSpaceBelow.Value.PSObject.Properties |
+                    Sort-Object 'Value'
+                ) {
+                    try {
+                        $null = $property.Value.ToInt16($null)
+                    }
+                    catch {
+                        throw "Property 'ColorFreeSpaceBelow' with color '$($property.Name)' contains value '$($property.Value)' that is not a number."
                     }
 
                     Try {
-                        $ColorValue = $_.Name
-                        $null = [System.Drawing.Color]$_.Name
+                        $ColorValue = $property.Name
+                        $null = [System.Drawing.Color]$property.Name
                     }
                     Catch {
                         Throw "Property 'ColorFreeSpaceBelow' with 'Color' value '$ColorValue' is not valid because it's not a proper color"
                     }
 
                     $highlightExcelRow.Add(
-                        $_.Value, [System.Drawing.Color]$_.Name
+                        $property.Value, [System.Drawing.Color]$property.Name
                     )
 
-                    $M = "Highlight Excel row with free space lower than '{0}{1}' in '{2}'" -f $_.Value, $ColorFreeSpaceBelow.Type, $_.Name
+                    $M = "Highlight Excel row with free space lower than '{0}{1}' in '{2}'" -f
+                    $property.Value, $ColorFreeSpaceBelow.Type, $property.Name
                     Write-Verbose $M
                     Write-EventLog @EventVerboseParams -Message $M
                 }
@@ -189,7 +195,7 @@ Begin {
         Write-EventLog @EventErrorParams -Message "FAILURE:`n`n- $_"
         Write-EventLog @EventEndParams; Exit 1
     }
-}       
+}
 Process {
     Try {
         #region Get drives
@@ -214,7 +220,7 @@ Process {
                 $drives = $drives.Where({ $_.DeviceID -ne $e.DriveLetter })
             }
             else {
-                $drives = $drives.Where({ 
+                $drives = $drives.Where({
                         -not (
                             ($_.PSComputerName -eq $e.ComputerName) -and
                             ($_.DeviceID -eq $e.DriveLetter)
@@ -259,19 +265,19 @@ End {
 
             $column = @{}
 
-            if ($ColorFreeSpaceBelow.Type -eq 'GB') { 
+            if ($ColorFreeSpaceBelow.Type -eq 'GB') {
                 $column.Color = 'F'
                 $column.Sort = 'FreeSpace'
             }
             elseif ($ColorFreeSpaceBelow.Type -eq '%') {
-                $column.Color = 'G' 
+                $column.Color = 'G'
                 $column.Sort = 'Free'
             }
             else {
                 $column.Sort = 'ComputerName'
             }
 
-            [array]$drives = $drives | 
+            [array]$drives = $drives |
             Select-Object -Property @{
                 Name       = 'ComputerName'
                 Expression = { $_.PSComputerName }
@@ -290,8 +296,8 @@ End {
             },
             @{
                 Name       = 'UsedSpace'
-                Expression = { 
-                    [Math]::Round(($_.Size - $_.FreeSpace) / 1GB, 2) 
+                Expression = {
+                    [Math]::Round(($_.Size - $_.FreeSpace) / 1GB, 2)
                 }
             },
             @{
@@ -300,11 +306,11 @@ End {
             },
             @{
                 Name       = 'Free'
-                Expression = { 
-                    [Math]::Round( ($_.FreeSpace / $_.Size) * 100, 2) 
+                Expression = {
+                    [Math]::Round( ($_.FreeSpace / $_.Size) * 100, 2)
                 }
             }
-            
+
             $excelWorkbook = $drives | Sort-Object $column.Sort |
             Export-Excel @excelParams -AutoNameRange -CellStyleSB {
                 Param (
@@ -339,7 +345,7 @@ End {
 
                 $conditionParams = @{
                     WorkSheet = $workSheet
-                    Range     = '{0}2:{0}{1}' -f 
+                    Range     = '{0}2:{0}{1}' -f
                     $column.Color, $workSheet.Dimension.Rows
                 }
 
@@ -375,7 +381,7 @@ End {
 
         $mailParams.Subject = '{0} computer{1}, {2} drive{3}' -f
         $counter.computers,
-        $(if ($counter.computers -ne 1) { 's' }), 
+        $(if ($counter.computers -ne 1) { 's' }),
         $counter.drives,
         $(if ($counter.drives -ne 1) { 's' })
         #endregion
@@ -391,20 +397,20 @@ End {
                 PassThru      = $true
             }
 
-            $Error.Exception.Message | 
+            $Error.Exception.Message |
             Select-Object @{Name = 'Error message'; Expression = { $_ } } |
             Export-Excel @exportErrorParams
 
             $mailParams.Attachments = $exportErrorParams.Path
             #endregion
-            
+
             #region Mail subject, priority, message
             $mailParams.Priority = 'High'
 
             $mailParams.Subject += ', {0} error{1}' -f $counter.errors, $(
                 if ($counter.errors -ne 1) { 's' }
             )
-            $mailParams.Message = "<p>Detected <b>{0} non terminating error{1}</b></p>" -f $counter.errors, 
+            $mailParams.Message = "<p>Detected <b>{0} non terminating error{1}</b></p>" -f $counter.errors,
             $(
                 if ($counter.errors -gt 1) { 's' }
             )
@@ -415,13 +421,13 @@ End {
         $countedColorRows = if ($highlightExcelRow) {
             $previousValue = $null
             foreach ($h in $highlightExcelRow.GetEnumerator()) {
-                '<tr><th>{0}</th><td>{1}</td></tr>' -f 
+                '<tr><th>{0}</th><td>{1}</td></tr>' -f
                 $(
                     if (-not $previousValue) {
                         'less than {0}{1}' -f $h.Key, $ColorFreeSpaceBelow.Type
                     }
                     else {
-                        'between {0}{1} and {2}{1}' -f 
+                        'between {0}{1} and {2}{1}' -f
                         $previousValue, $ColorFreeSpaceBelow.Type, $h.Key
                     }
                 ),
@@ -456,12 +462,12 @@ End {
                 <tr><th>Drives</th><td>{1}</td></tr>
                 $countedColorRows
             </table>" -f $counter.computers, $counter.drives
-        
+
 
         if ($mailParams.Attachments) {
             $mailParams.Message += '<p><i>* Check the attachment for details</i></p>'
         }
-        Get-ScriptRuntimeHC -Stop  
+        Get-ScriptRuntimeHC -Stop
         Send-MailHC @mailParams
         #endregion
     }
