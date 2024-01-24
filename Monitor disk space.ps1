@@ -389,12 +389,11 @@ End {
         if ($counter.errors) {
             #region Export errors to Excel
             $exportErrorParams = @{
-                Path          = "$LogFile.xlsx"
+                Path          = $excelParams.Path
                 WorkSheetName = 'Errors'
                 TableName     = 'Errors'
                 AutoSize      = $true
                 FreezeTopRow  = $true
-                PassThru      = $true
             }
 
             $Error.Exception.Message |
