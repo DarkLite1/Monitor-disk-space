@@ -247,7 +247,6 @@ End {
             Path         = "$LogFile.xlsx"
             AutoSize     = $true
             FreezeTopRow = $true
-            PassThru     = $true
         }
         $mailParams = @{
             To        = $SendMail.To
@@ -312,7 +311,7 @@ End {
             }
 
             $excelWorkbook = $drives | Sort-Object $column.Sort |
-            Export-Excel @excelParams -AutoNameRange -CellStyleSB {
+            Export-Excel @excelParams -PassThru -AutoNameRange -CellStyleSB {
                 Param (
                     $workSheet,
                     $TotalRows,
@@ -388,19 +387,17 @@ End {
 
         if ($counter.errors) {
             #region Export errors to Excel
-            $exportErrorParams = @{
-                Path          = $excelParams.Path
-                WorkSheetName = 'Errors'
-                TableName     = 'Errors'
-                AutoSize      = $true
-                FreezeTopRow  = $true
-            }
+            $excelParams.WorkSheetName ='Errors'
+            $excelParams.TableName ='Errors'
 
             $Error.Exception.Message |
-            Select-Object @{Name = 'Error message'; Expression = { $_ } } |
-            Export-Excel @exportErrorParams
+            Select-Object @{
+                Name       = 'Error message'
+                Expression = { $_ }
+            } |
+            Export-Excel @excelParams
 
-            $mailParams.Attachments = $exportErrorParams.Path
+            $mailParams.Attachments = $excelParams.Path
             #endregion
 
             #region Mail subject, priority, message
@@ -409,7 +406,7 @@ End {
             $mailParams.Subject += ', {0} error{1}' -f $counter.errors, $(
                 if ($counter.errors -ne 1) { 's' }
             )
-            $mailParams.Message = "<p>Detected <b>{0} non terminating error{1}</b></p>" -f $counter.errors,
+            $mailParams.Message = "<p>Detected <b>{0} non terminating error{1}.</b></p>" -f $counter.errors,
             $(
                 if ($counter.errors -gt 1) { 's' }
             )
