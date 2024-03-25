@@ -209,8 +209,14 @@ Process {
             Verbose     = $false
         }
         [array]$drives = foreach ($computer in $ComputerNames) {
-            Write-Verbose "Get drives on computer '$computer'"
-            Get-CimInstance @params -ComputerName $computer
+            try {
+                Write-Verbose "Get drives on computer '$computer'"
+                Get-CimInstance @params -ComputerName $computer
+            }
+            catch {
+                Write-Error "Failed getting drives on '$computer': $_"
+                $Error.RemoveAt(1)
+            }
         }
         #endregion
 
